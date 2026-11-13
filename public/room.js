@@ -119,17 +119,18 @@
     document.title = `${g.name} - 두리게임`;
     const me = room.players[room.you], opp = room.players[1 - room.you];
     const chip = (p, isMe) => p
-      ? `<div class="pchip ${isMe ? 'me' : ''}"><span class="dot ${p.online ? 'on' : ''}"></span>${esc(p.name)}${isMe ? ' (나)' : ''}</div>`
+      ? `<div class="pchip ${isMe ? 'me' : ''}"><span class="dot ${p.online ? 'on' : ''}"></span>${esc(p.name)}<span class="desk-only">${isMe ? ' (나)' : ''}</span></div>`
       : `<div class="pchip"><span class="dot"></span>대기 중...</div>`;
 
     // 상단 바는 한 번만 만들고 갱신
     if (!document.getElementById('roombar')) {
       app.innerHTML = `
         <div class="roombar" id="roombar">
+          <a href="/" class="mob-only home-btn" title="홈">🏠</a>
           <span class="gname">${g.icon} ${g.name}</span>
           <input class="link" id="link" readonly value="${esc(location.origin + '/r/' + roomId)}">
-          <button class="primary" id="copy">링크 복사</button>
-          <button class="ghost" id="helpBtn">📖 플레이 방법</button>
+          <button class="primary" id="copy"><span class="desk-only">링크 </span>복사</button>
+          <button class="ghost" id="helpBtn">📖<span class="desk-only"> 플레이 방법</span></button>
           <div class="players" id="players"></div>
         </div>
         <main class="stage"><div id="banner"></div><div id="game"></div></main>`;

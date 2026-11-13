@@ -7,6 +7,23 @@ const timerHtml = (deadline, mine, total, label) => deadline
   ? `<div class="turn-timer ${mine ? 'mine' : 'opp'}" data-deadline="${deadline}" data-total="${total}">
       <div class="tt-label">${mine ? '⏱' : '⏳'} ${label}</div><div class="tt-bar"><div class="tt-fill"></div></div><div class="tt-sec"></div></div>`
   : '';
+// 기록/로그: PC에서는 그대로 보이고, 모바일에서는 오른쪽 아래 '기록' 버튼으로 여는 시트
+window.SHOW_EXTRA = false;
+window.toggleExtra = () => {
+  window.SHOW_EXTRA = !window.SHOW_EXTRA;
+  document.querySelectorAll('.extra').forEach(e => e.classList.toggle('show', window.SHOW_EXTRA));
+};
+const extraHtml = (label, html) => `
+  <button type="button" class="extra-btn" onclick="toggleExtra()">📜 ${label}</button>
+  <div class="extra ${window.SHOW_EXTRA ? 'show' : ''}">
+    <div class="extra-head"><b>${label}</b><button type="button" onclick="toggleExtra()">닫기 ✕</button></div>${html}</div>`;
+// 나 : 라운드 : 상대 점수판
+const scoreBar = (me, center, opp, meCls = 'win', oppCls = 'lose') => `
+  <div class="panel scorebar"><div class="row" style="justify-content:space-around">
+    <div class="sb-cell"><div class="muted small">나</div><div class="score-big ${meCls}">${me}</div></div>
+    <div class="sb-cell"><div class="muted small">라운드</div><div class="score-big">${center}</div></div>
+    <div class="sb-cell"><div class="muted small">상대</div><div class="score-big ${oppCls}">${opp}</div></div>
+  </div></div>`;
 const resultWord = r => (r === 'win' ? '<b class="win">승</b>' : r === 'lose' ? '<b class="lose">패</b>' : '무');
 
 /* ───────── 흑과 백 ───────── */
@@ -22,7 +39,7 @@ R.blackwhite = (el, v, ctx) => {
     : `<div class="bw-tile unknown">?</div>`;
   el.innerHTML = `
     ${statusHtml(st, v.myTurn)}
-    <div class="panel"><div class="row" style="justify-content:space-around">
+    <div class="panel scorebar"><div class="row" style="justify-content:space-around">
       <div style="text-align:center"><div class="muted small">내 남은 점수</div><div class="score-big">${v.myPts}</div>${lamps(v.myLamps)}</div>
       <div style="text-align:center"><div class="muted small">라운드</div><div class="score-big">${v.round}<span class="muted" style="font-size:20px">/${v.rounds}</span></div>
         <div>나 <b class="win">${v.wins[0]}승</b> : <b class="lose">${v.wins[1]}승</b> 상대</div></div>
@@ -31,15 +48,15 @@ R.blackwhite = (el, v, ctx) => {
     <div class="panel"><div class="row">
       <div style="text-align:center"><div class="muted small" style="margin-bottom:6px">상대가 낸 타일</div>${oppTile}</div>
       ${v.myTurn ? `<form id="bwf" class="row">
-        <input id="bwi" type="number" min="0" max="${v.myPts}" inputmode="numeric" placeholder="0~${v.myPts}" value="${esc(bwDraft)}" style="width:120px;font-size:22px;text-align:center">
+        <input id="bwi" type="number" min="0" max="${v.myPts}" inputmode="numeric" placeholder="0~${v.myPts}" value="${esc(bwDraft)}" class="bw-input">
         <button class="primary">점수 내기</button></form>` : ''}
     </div></div>
-    <div class="panel"><table class="log">
+    ${extraHtml('라운드 기록', `<div class="panel"><table class="log">
       <tr><th>라운드</th><th>선</th><th>내가 낸 점수</th><th>내 색</th><th>상대 색</th>${v.reveal ? '<th>상대 점수</th>' : ''}<th>결과</th></tr>
       ${v.log.map((l, k) => `<tr><td>${l.round}</td><td>${l.iWentFirst ? '나' : '상대'}</td><td>${l.myBet}</td>
         <td><span class="chip-b ${l.myColor}"></span></td><td><span class="chip-b ${l.oppColor}"></span></td>
         ${v.reveal ? `<td>${v.reveal[k].opp}</td>` : ''}<td>${resultWord(l.result)}</td></tr>`).join('') || '<tr><td colspan="7" class="muted">아직 기록이 없어요</td></tr>'}
-    </table></div>`;
+    </table></div>`)}`;
   const f = document.getElementById('bwf');
   if (f) {
     const inp = document.getElementById('bwi');
@@ -70,28 +87,24 @@ R.gyulhap = (el, v, ctx) => {
   };
   const draw = () => {
     el.innerHTML = `
-      ${v.over ? '' : statusHtml('차례는 없어요! "합"을 먼저 찾아서 외치세요. (숫자키 1~9로 고르고 Enter = 합)', true)}
-      <div class="panel"><div class="row" style="justify-content:space-around">
-        <div style="text-align:center"><div class="muted small">나</div><div class="score-big win">${v.scores[0]}</div></div>
-        <div style="text-align:center"><div class="muted small">라운드</div><div class="score-big">${v.round}<span class="muted" style="font-size:20px">/${v.rounds}</span></div></div>
-        <div style="text-align:center"><div class="muted small">상대</div><div class="score-big lose">${v.scores[1]}</div></div>
-      </div></div>
+      ${v.over ? '' : statusHtml('차례 없음! "합"을 먼저 찾아 외치세요.<span class="desk-only"> (숫자키 1~9 선택, Enter = 합)</span>', true)}
+      ${scoreBar(v.scores[0], `${v.round}<span class="muted of">/${v.rounds}</span>`, v.scores[1])}
       <div class="panel">
         <div class="gh-board">${v.board.map((t, k) => `
           <button class="gh-tile ${ghSel.includes(k + 1) ? 'sel' : ''}" data-n="${k + 1}" style="background:${BGS[t.bg]}">
             <span class="num">${k + 1}</span>${shapeSvg(t.shape, t.color)}</button>`).join('')}</div>
-        <div class="row" style="margin-top:16px">
-          <button class="primary" id="hap" ${ghSel.length === 3 && !v.over ? '' : 'disabled'} style="font-size:20px;padding:12px 36px">합!</button>
-          <button id="gyul" ${v.over ? 'disabled' : ''} style="font-size:20px;padding:12px 36px;background:#3b2f8f">결!</button>
-          <button class="ghost" id="clr">선택 해제</button>
+        <div class="row gh-btns">
+          <button class="primary" id="hap" ${ghSel.length === 3 && !v.over ? '' : 'disabled'}>합!</button>
+          <button id="gyul" ${v.over ? 'disabled' : ''} style="background:#3b2f8f">결!</button>
+          <button class="ghost" id="clr">해제</button>
         </div>
       </div>
-      <div class="panel"><div class="muted small" style="margin-bottom:6px">이번 라운드에 나온 합</div>
+      ${extraHtml('합 기록', `<div class="panel"><div class="muted small" style="margin-bottom:6px">이번 라운드에 나온 합</div>
         <div class="claimed-list">${v.claimed.map(c => `<span>${c.split('').join('·')}</span>`).join('') || '<span class="muted" style="background:none">아직 없어요</span>'}</div></div>
       <div class="panel feed">${v.log.slice().reverse().map(l => `<div>
         <b>${l.mine ? '나' : '상대'}</b> ${l.kind === 'hap' ? `합! ${l.cells.split('').join('·')}` : '결!'}
         → <b class="${l.ok ? 'win' : 'lose'}">${l.delta > 0 ? '+' : ''}${l.delta}</b> ${l.reason ? `<span class="muted">(${l.reason})</span>` : ''}
-        <span class="muted small">R${l.round}</span></div>`).join('') || '<div class="muted">기록이 여기에 표시돼요</div>'}</div>`;
+        <span class="muted small">R${l.round}</span></div>`).join('') || '<div class="muted">기록이 여기에 표시돼요</div>'}</div>`)}`;
     el.querySelectorAll('.gh-tile').forEach(b => (b.onclick = () => toggle(Number(b.dataset.n))));
     document.getElementById('hap').onclick = submitHap;
     document.getElementById('gyul').onclick = () => ctx.send({ type: 'gyul' });
@@ -141,41 +154,40 @@ R.indian = (el, v, ctx) => {
   const last = v.last;
   el.innerHTML = `
     ${v.over ? '' : timerHtml(v.deadline, v.myTurn, 30000, v.myTurn ? '내 차례' : '상대 차례')}
-    ${last ? `<div class="panel small" style="text-align:center">
-      지난 라운드: 내 카드 <b>${last.myCard}</b> vs 상대 카드 <b>${last.oppCard}</b> →
+    ${last ? `<div class="panel small lastline">
+      지난 판: 내 카드 <b>${last.myCard}</b> vs 상대 카드 <b>${last.oppCard}</b> →
       ${resultWord(last.result)} ${last.reason === 'fold' ? `(${last.folder === 'me' ? '내가' : '상대가'} 다이)` : '(카드 공개)'}
       · 판돈 ${last.pot}${last.penalty ? ` · <b class="lose">10 들고 다이 벌칙 ${last.penalty}개</b>` : ''}</div>` : ''}
     <div class="ip-table">
-      <div class="ip-who">상대</div>
+      <div class="ip-who desk-only">상대</div>
       <div class="ip-side">
         <div class="pcard">${v.oppCard ?? '-'}</div>
-        <div class="ip-bet ${v.need > 0 ? 'hot' : ''}"><div class="lbl">상대가 이번 판에 건 칩</div><div class="num">${v.oppBet}</div>${chipStacks(v.oppBet)}</div>
-        <div class="ip-bank"><div class="lbl">상대 보유 칩</div><div class="num">${v.oppChips}</div></div>
+        <div class="ip-bet ${v.need > 0 ? 'hot' : ''}"><div class="lbl">상대가 건 칩</div><div class="num">${v.oppBet}</div>${chipStacks(v.oppBet)}</div>
+        <div class="ip-bank"><div class="lbl">상대 보유</div><div class="num">${v.oppChips}</div></div>
       </div>
       <div class="ip-center">
-        <div class="muted small">판돈</div>
-        <div class="ip-pot">${v.pot}</div>
+        <div class="ip-potrow"><span class="muted small">판돈</span> <span class="ip-pot">${v.pot}</span></div>
         ${v.myTurn && v.need > 0 ? `<div class="ip-callout">상대가 ${v.need}개 더 걸었어요!</div>` : ''}
         <div class="ip-acts">${v.actions.map(a => `<span class="${a.mine ? 'me' : 'opp'}">${actText(a)}</span>`).join('') || '<span>기본 칩 1개씩 냈어요</span>'}</div>
-        <div class="muted small" style="margin-top:8px">라운드 ${v.round} · 남은 카드 ${v.deckLeft}장${v.reshuffled ? ' · <b style="color:var(--accent2)">카드를 새로 섞었어요</b>' : ''}</div>
+        <div class="muted small ip-meta">라운드 ${v.round} · 남은 카드 ${v.deckLeft}장${v.reshuffled ? ' · <b style="color:var(--accent2)">카드를 새로 섞었어요</b>' : ''}</div>
       </div>
       <div class="ip-side">
         <div class="pcard back">?</div>
-        <div class="ip-bet"><div class="lbl">내가 이번 판에 건 칩</div><div class="num">${v.myBet}</div>${chipStacks(v.myBet)}</div>
-        <div class="ip-bank"><div class="lbl">내 보유 칩</div><div class="num">${v.myChips}</div></div>
+        <div class="ip-bet"><div class="lbl">내가 건 칩</div><div class="num">${v.myBet}</div>${chipStacks(v.myBet)}</div>
+        <div class="ip-bank"><div class="lbl">내 보유</div><div class="num">${v.myChips}</div></div>
       </div>
-      <div class="ip-who" style="margin-top:6px">나 (내 카드는 안 보여요)</div>
+      <div class="ip-who desk-only" style="margin-top:6px">나 (내 카드는 안 보여요)</div>
     </div>
-    ${v.myTurn ? `<div class="panel" style="margin-top:14px"><div class="ip-controls">
+    ${v.myTurn ? `<div class="panel ip-panel"><div class="ip-controls">
       <button id="fold" class="big" style="background:#5a2323">다이</button>
       <button id="call" class="big">${v.need > 0 ? `콜 (${Math.min(v.need, v.myChips)}개)` : '체크'}</button>
       <form id="rf" class="row" style="gap:6px">
         <div class="ip-quick">${[1, 3, 5].filter(x => x <= v.maxRaise).map(x => `<button type="button" data-q="${x}">+${x}</button>`).join('')}
-          ${v.maxRaise >= 1 ? `<button type="button" data-q="${v.maxRaise}">올인 +${v.maxRaise}</button>` : ''}</div>
+          ${v.maxRaise >= 1 ? `<button type="button" data-q="${v.maxRaise}">올인</button>` : ''}</div>
         <input id="ri" type="number" min="1" max="${v.maxRaise}" value="${esc(ipDraft)}" placeholder="1~${v.maxRaise}" style="width:90px" ${v.maxRaise < 1 ? 'disabled' : ''}>
         <button class="primary big" ${v.maxRaise < 1 ? 'disabled' : ''}>레이즈</button>
       </form></div>
-      <div class="muted small" style="text-align:center;margin-top:8px">레이즈 = 상대만큼 맞춘 뒤 입력한 개수만큼 더 걸기 · 시간이 지나면 ${v.need > 0 ? '자동 다이' : '자동 체크'}</div></div>` : ''}`;
+      <div class="muted small desk-only" style="text-align:center;margin-top:8px">레이즈 = 상대만큼 맞춘 뒤 입력한 개수만큼 더 걸기 · 시간이 지나면 ${v.need > 0 ? '자동 다이' : '자동 체크'}</div></div>` : ''}`;
   if (v.myTurn) {
     document.getElementById('fold').onclick = () => {
       if (confirm('다이할까요? 내 카드가 10이면 칩 10개 벌칙이 있어요.')) ctx.send({ type: 'fold' });
@@ -228,7 +240,7 @@ R.janggi12 = (el, v, ctx) => {
     const isLast = (r, c) => lm && ((lm.to[0] === r && lm.to[1] === c) || (lm.from && lm.from[0] === r && lm.from[1] === c));
     const myBack = 3 - v.myEnemyRow;
     el.innerHTML = `
-      ${v.over ? '' : statusHtml(v.myTurn ? '내 차례예요. (파란 말이 내 말)' : '상대 차례예요...', v.myTurn)}
+      ${v.over ? '' : statusHtml(v.myTurn ? '내 차례예요. <span class="desk-only">(파란 말이 내 말)</span>' : '상대 차례예요...', v.myTurn)}
       <div class="jg-wrap">
         <div>
           <div class="muted small" style="text-align:center">상대 포로</div>
@@ -282,34 +294,28 @@ R.mysterysign = (el, v, ctx) => {
     mineTurn = v.canAnswer;
     st = !v.canAnswer ? '틀려서 이번 힌트의 기회는 상대에게 넘어갔어요.'
       : v.oppLocked ? '상대가 틀렸어요! 이제 나만 맞힐 수 있어요.'
-      : v.myPassed ? '패스했어요. 상대도 패스하면 다음 힌트로 넘어가요. (그 전에 답을 알면 맞혀도 돼요)'
-      : '규칙을 찾았다면 답을 외치고, 모르겠으면 패스하세요.';
+      : v.myPassed ? '패스했어요. 상대도 패스하면 다음 힌트!'
+      : '답을 알면 정답, 모르면 패스!';
     timerLabel = '이번 힌트 남은 시간';
   } else if (v.phase === 'roundEnd') { timerLabel = '다음 라운드까지'; }
-  const lastAttempt = v.attempts[v.attempts.length - 1];
   el.innerHTML = `
     ${v.over ? '' : timerHtml(v.deadline, mineTurn, v.phase === 'answer' ? 180000 : v.phase === 'roundEnd' ? 8000 : 30000, timerLabel)}
-    <div class="panel"><div class="row" style="justify-content:space-around">
-      <div style="text-align:center"><div class="muted small">나</div><div class="score-big win">${v.scores[0]}</div></div>
-      <div style="text-align:center"><div class="muted small">라운드</div><div class="score-big">${v.round}<span class="muted" style="font-size:20px">/${v.rounds}</span></div></div>
-      <div style="text-align:center"><div class="muted small">상대</div><div class="score-big lose">${v.scores[1]}</div></div>
-    </div></div>
+    ${scoreBar(v.scores[0], `${v.round}<span class="muted of">/${v.rounds}</span>`, v.scores[1])}
     ${v.result ? `<div class="ms-reveal"><div>${solverText(v.result)}</div>
       <div class="rule">규칙: ${esc(v.result.rule)}</div>
       <div>정답 ${v.result.problem.a} ? ${v.result.problem.b} = <b>${v.result.answer}</b></div></div>` : ''}
     ${v.over ? '' : statusHtml(st, mineTurn)}
     ${v.note ? `<div class="panel small" style="text-align:center;color:var(--accent2)">${v.note}</div>` : ''}
     <div class="panel">
-      <div class="muted small" style="text-align:center">문제</div>
       <div class="ms-problem">${v.problem.a}<span class="sign">?</span>${v.problem.b} = <span class="q">${v.result ? v.result.answer : '?'}</span></div>
       ${v.phase === 'answer' ? `<form id="af" class="ms-answer">
         <input id="ai" type="number" inputmode="numeric" placeholder="정답" value="${esc(msDraft)}" ${v.canAnswer ? '' : 'disabled'}>
         <button class="primary" ${v.canAnswer ? '' : 'disabled'}>정답!</button>
         <button type="button" id="pass" ${v.myPassed ? 'disabled' : ''} style="background:#3b2f8f">${v.myPassed ? '패스함 ✓' : '패스'}</button></form>
-        <div class="row small" style="margin-top:10px;gap:20px">
+        <div class="row small ms-who">
           <span>나: ${v.myLocked ? '<b class="lose">오답 (자동 패스)</b>' : v.myPassed ? '<b style="color:var(--accent2)">패스</b>' : '고민 중'}</span>
           <span>상대: ${v.oppLocked ? '<b class="lose">오답 (자동 패스)</b>' : v.oppPassed ? '<b style="color:var(--accent2)">패스</b>' : '고민 중'}</span></div>
-        <div class="muted small" style="text-align:center;margin-top:6px">맞히면 +1 · 틀리면 -1 · 둘 다 패스하면 다음 힌트 (힌트당 최대 3분)</div>` : ''}
+        <div class="muted small desk-only" style="text-align:center;margin-top:6px">맞히면 +1 · 틀리면 -1 · 둘 다 패스하면 다음 힌트 (힌트당 최대 3분)</div>` : ''}
       ${v.phase === 'propose' ? `<div style="text-align:center;margin-top:6px">
         <div class="ms-hint" style="display:inline-block;min-width:240px">${v.frontNumber ?? (v.slot === 0 && v.myPropose ? '<span class="q">앞</span>' : '□')}<span class="sign">?</span>${v.slot === 1 && v.myPropose ? '<span class="q">뒤</span>' : '□'} = □</div>
         ${v.myPropose ? `<form id="pf" class="ms-answer" style="margin-top:12px">
@@ -317,18 +323,19 @@ R.mysterysign = (el, v, ctx) => {
           <button class="primary">${v.slot === 0 ? '앞' : '뒤'} 숫자 내기</button></form>` : ''}</div>` : ''}
     </div>
     <div class="panel">
-      <div class="muted small" style="margin-bottom:8px">공개된 힌트 (${v.hints.length}/${v.maxHints})</div>
+      <div class="muted small" style="margin-bottom:6px">공개된 힌트 (${v.hints.length}/${v.maxHints})</div>
       <div class="ms-hints">${v.hints.map((h, k) => `<div class="ms-hint ${k === v.hints.length - 1 && v.phase === 'answer' ? 'new' : ''}"><small>힌트 ${k + 1}</small>${h.x}<span class="sign">?</span>${h.y} = ${h.z}</div>`).join('') || '<div class="muted">아직 힌트가 없어요. 숫자를 넣어 규칙을 알아내세요!</div>'}</div>
-      ${v.attempts.length ? `<div class="feed" style="margin-top:12px">${v.attempts.slice().reverse().map(t => `<div><b>${t.mine ? '나' : '상대'}</b>: ${t.n} → <b class="${t.ok ? 'win' : 'lose'}">${t.ok ? '정답 +1' : '오답 -1'}</b> <span class="muted small">(힌트 ${t.hint}개 공개 시점)</span></div>`).join('')}</div>` : ''}
     </div>
+    ${extraHtml('정답 기록', `
+      ${v.attempts.length ? `<div class="panel feed">${v.attempts.slice().reverse().map(t => `<div><b>${t.mine ? '나' : '상대'}</b>: ${t.n} → <b class="${t.ok ? 'win' : 'lose'}">${t.ok ? '정답 +1' : '오답 -1'}</b> <span class="muted small">(힌트 ${t.hint}개 공개 시점)</span></div>`).join('')}</div>` : '<div class="panel muted">이번 라운드 정답 시도가 없어요</div>'}
     ${v.history.length ? `<div class="panel"><div class="muted small" style="margin-bottom:6px">지난 라운드 규칙</div><table class="log">
       <tr><th>R</th><th>규칙</th><th>문제</th><th>결과</th></tr>
-      ${v.history.map(h => `<tr><td>${h.round}</td><td>${esc(h.rule)}</td><td>${h.problem.a} ? ${h.problem.b} = ${h.answer}</td><td>${h.solver === 'me' ? '<b class="win">나</b>' : h.solver === 'opp' ? '<b class="lose">상대</b>' : '무효'}</td></tr>`).join('')}</table></div>` : ''}`;
+      ${v.history.map(h => `<tr><td>${h.round}</td><td>${esc(h.rule)}</td><td>${h.problem.a} ? ${h.problem.b} = ${h.answer}</td><td>${h.solver === 'me' ? '<b class="win">나</b>' : h.solver === 'opp' ? '<b class="lose">상대</b>' : '무효'}</td></tr>`).join('')}</table></div>` : ''}`)}`;
   const af = document.getElementById('af');
   if (af) {
     const ai = document.getElementById('ai');
     ai.oninput = () => (msDraft = ai.value);
-    if (v.canAnswer) ai.focus();
+    if (v.canAnswer && window.innerWidth > 760) ai.focus();
     af.onsubmit = e => {
       e.preventDefault();
       if (ai.value === '' || !Number.isInteger(Number(ai.value))) return ctx.toast('정수를 입력하세요.');
@@ -342,7 +349,7 @@ R.mysterysign = (el, v, ctx) => {
   if (pf) {
     const pi = document.getElementById('pi');
     pi.oninput = () => (msPropDraft = pi.value);
-    pi.focus();
+    if (window.innerWidth > 760) pi.focus();
     pf.onsubmit = e => {
       e.preventDefault();
       const n = Number(pi.value);
@@ -370,27 +377,26 @@ R.davinci = (el, v, ctx) => {
     el.innerHTML = `
       ${statusHtml(st, v.myTurn)}
       <div class="panel">
-        <div class="muted small" style="text-align:center;margin-bottom:10px">상대 타일 ${v.oppHasPending ? `· 상대가 가져온 타일: <span class="chip-b ${v.oppPendingColor === 'B' ? '흑' : '백'}"></span>` : ''}</div>
+        <div class="muted small dv-cap">상대 타일 ${v.oppHasPending ? `· 상대가 가져온 타일: <span class="chip-b ${v.oppPendingColor === 'B' ? '흑' : '백'}"></span>` : ''}</div>
         <div class="dv-row">${v.oppHand.map((t, k) => `
           <div class="dv-tile ${t.c} ${t.revealed ? 'open' : ''} ${canGuess && !t.revealed ? 'clickable' : ''} ${dvSel === k ? 'sel' : ''}" data-k="${k}">
             ${t.n !== undefined ? t.n : '<span class="q">?</span>'}<span class="tag">${k + 1}번${t.revealed ? ' 공개' : ''}</span></div>`).join('')}</div>
-        <div style="height:24px"></div>
-        ${canGuess && dvSel !== null ? `<div style="text-align:center;margin-bottom:8px">${dvSel + 1}번 타일의 숫자는?</div>
+        <div class="dv-gap"></div>
+        ${canGuess && dvSel !== null ? `<div style="text-align:center;margin-bottom:6px">${dvSel + 1}번 타일의 숫자는?</div>
           <div class="numpad">${[...Array(12).keys()].map(n => `<button data-n="${n}">${n}</button>`).join('')}</div>` : ''}
         ${v.myTurn && v.phase === 'continue' ? `<div class="row" style="margin-top:12px"><button class="primary" id="stop">멈추기 (턴 넘기기)</button></div>` : ''}
       </div>
       <div class="panel">
-        <div class="row" style="margin-bottom:12px">
-          ${v.pending ? `<div style="text-align:center"><div class="muted small">이번에 가져온 타일</div><div class="dv-tile ${v.pending.c}" style="margin:6px auto 0">${v.pending.n}</div></div>` : ''}
-          <div class="muted small">더미 남은 타일 ${v.pile}장</div>
+        <div class="row dv-mine-head">
+          ${v.pending ? `<span class="muted small">가져온 타일</span><div class="dv-tile small ${v.pending.c}">${v.pending.n}</div>` : ''}
+          <span class="muted small">내 타일 (빨간 테두리 = 공개됨) · 더미 ${v.pile}장</span>
         </div>
-        <div class="muted small" style="text-align:center;margin-bottom:10px">내 타일 (빨간 테두리 = 상대에게 공개됨)</div>
         <div class="dv-row">${v.myHand.map((t, k) => `
           <div class="dv-tile ${t.c} ${t.revealed ? 'open' : ''} ${penalty && !t.revealed ? 'clickable' : ''}" data-mk="${k}">${t.n}<span class="tag">${t.revealed ? '공개' : '비공개'}</span></div>`).join('')}</div>
-        <div style="height:16px"></div>
+        <div class="dv-gap"></div>
       </div>
-      <div class="panel feed">${v.log.slice().reverse().map(l => `<div><b>${l.mine ? '나' : '상대'}</b>:
-        ${l.mine ? '상대' : '내'} ${l.idx + 1}번 타일(<span class="chip-b ${l.c === 'B' ? '흑' : '백'}"></span>)은 ${l.n}? → <b class="${l.ok ? 'win' : 'lose'}">${l.ok ? '정답' : '오답'}</b></div>`).join('') || '<div class="muted">추리 기록이 여기에 표시돼요</div>'}</div>`;
+      ${extraHtml('추리 기록', `<div class="panel feed">${v.log.slice().reverse().map(l => `<div><b>${l.mine ? '나' : '상대'}</b>:
+        ${l.mine ? '상대' : '내'} ${l.idx + 1}번 타일(<span class="chip-b ${l.c === 'B' ? '흑' : '백'}"></span>)은 ${l.n}? → <b class="${l.ok ? 'win' : 'lose'}">${l.ok ? '정답' : '오답'}</b></div>`).join('') || '<div class="muted">추리 기록이 여기에 표시돼요</div>'}</div>`)}`;
     if (canGuess) el.querySelectorAll('.dv-tile[data-k]').forEach(t => (t.onclick = () => {
       const k = Number(t.dataset.k);
       if (v.oppHand[k].revealed) return;
@@ -413,9 +419,9 @@ let sdSel = [], sdDraft = [], sdKey = '';
 R.secretdice = (el, v, ctx) => {
   const key = v.round + v.phase;
   if (key !== sdKey) { sdSel = []; sdDraft = []; sdKey = key; }
-  const LABEL = { ones: '1', twos: '2', threes: '3', fours: '4', fives: '5', sixes: '6', total: '총합', fullHouse: '2·3 다이스 (풀하우스)', straight4: '4연속', straight5: '5연속', four: '4 다이스', fiveJoker: '5 다이스 / 조커' };
+  const LABEL = { ones: '1', twos: '2', threes: '3', fours: '4', fives: '5', sixes: '6', total: '총합', fullHouse: '2·3 다이스', straight4: '4연속', straight5: '5연속', four: '4 다이스', fiveJoker: '5다이스/조커' };
   const CATS = Object.keys(LABEL);
-  const role = v.isMain ? '<span class="role main">이번 라운드 주 플레이어: 나</span>' : '<span class="role sub">이번 라운드 주 플레이어: 상대</span>';
+  const role = v.isMain ? '<span class="role main">주 플레이어: 나</span>' : '<span class="role sub">주 플레이어: 상대</span>';
   const myWait = v.waitingFor && v.waitingFor[0];
   let st = '';
   if (!v.over) {
@@ -429,28 +435,28 @@ R.secretdice = (el, v, ctx) => {
     let body = '';
     if (v.phase === 'fix') {
       const n = sdSel.length;
-      body = `<div class="muted small" style="text-align:center;margin-bottom:10px">딜러가 던진 주사위</div>
+      body = `<div class="muted small sd-cap">딜러가 던진 주사위</div>
         <div class="sd-dice">${v.dealer.map((d, k) => `<div class="sd-die ${v.isMain ? 'click' : ''} ${sdSel.includes(k) ? 'sel' : ''}" data-k="${k}">${d}</div>`).join('')}</div>
-        ${v.isMain ? `<div class="fix-opts">${[1, 2, 3].map(c => `<div class="${n === c ? 'on' : ''} ${c === 3 && v.threeUsed[0] ? 'off' : ''}"><b>${c}개 고정</b><br>${fixInfo(c)}${c === 3 ? '<br>(게임당 1번)' : ''}</div>`).join('')}</div>
-          <div class="row" style="margin-top:14px"><button class="primary" id="fix" ${n >= 1 && !(n === 3 && v.threeUsed[0]) ? '' : 'disabled'}>${n ? n + '개 고정하기' : '주사위를 눌러 고르세요'}</button></div>` : ''}`;
+        ${v.isMain ? `<div class="fix-opts">${[1, 2, 3].map(c => `<div class="${n === c ? 'on' : ''} ${c === 3 && v.threeUsed[0] ? 'off' : ''}"><b>${c}개 고정</b><br>${fixInfo(c)}${c === 3 ? ' (1회)' : ''}</div>`).join('')}</div>
+          <div class="row" style="margin-top:10px"><button class="primary" id="fix" ${n >= 1 && !(n === 3 && v.threeUsed[0]) ? '' : 'disabled'}>${n ? n + '개 고정하기' : '주사위를 눌러 고르세요'}</button></div>` : ''}`;
     } else if (v.phase === 'pick') {
       const fixedDice = v.fixed.map(k => v.dealer[k]);
       const mine = v.myPick || sdDraft;
-      body = `<div class="muted small" style="text-align:center;margin-bottom:10px">고정된 주사위 + 두 사람이 낼 숫자</div>
+      body = `<div class="muted small sd-cap">고정 주사위 + 두 사람이 낼 숫자</div>
         <div class="sd-dice">
           ${fixedDice.map(d => `<div class="sd-die fixed">${d}<span class="src">고정</span></div>`).join('')}
           ${Array.from({ length: v.myNeed }, (_, k) => `<div class="sd-die ${mine[k] ? 'main' : 'empty'}">${mine[k] || '?'}<span class="src">내 숫자</span></div>`).join('')}
           ${Array.from({ length: v.oppNeed }, () => `<div class="sd-die empty">${v.oppPicked ? '✓' : '?'}<span class="src">상대 숫자</span></div>`).join('')}
         </div>
-        <div style="height:18px"></div>
+        <div class="sd-gap"></div>
         ${v.myPick ? `<div style="text-align:center" class="muted">숫자를 냈어요. ${v.oppPicked ? '' : '상대를 기다리는 중...'}</div>` : `
           <div class="sd-pad">${[1, 2, 3, 4, 5, 6].map(n => `<button data-n="${n}" ${sdDraft.length >= v.myNeed ? 'disabled' : ''}>${n}</button>`).join('')}</div>
-          <div class="row" style="margin-top:12px"><button class="ghost" id="undo" ${sdDraft.length ? '' : 'disabled'}>지우기</button>
+          <div class="row" style="margin-top:8px"><button class="ghost" id="undo" ${sdDraft.length ? '' : 'disabled'}>지우기</button>
             <button class="primary" id="submit" ${sdDraft.length === v.myNeed ? '' : 'disabled'}>비공개로 내기</button></div>`}
-        <div style="text-align:center;margin-top:10px" class="small">상대: ${v.oppPicked ? '<b class="win">제출 완료</b>' : '고르는 중...'}</div>`;
+        <div style="text-align:center;margin-top:6px" class="small">상대: ${v.oppPicked ? '<b class="win">제출 완료</b>' : '고르는 중...'}</div>`;
     } else if (v.phase === 'score') {
-      body = `<div class="muted small" style="text-align:center;margin-bottom:10px">완성된 주사위 5개</div>
-        <div class="sd-dice">${v.dice.map(d => `<div class="sd-die ${d.from}">${d.v}<span class="src">${srcLabel[d.from]}</span></div>`).join('')}</div><div style="height:16px"></div>`;
+      body = `<div class="muted small sd-cap">완성된 주사위 5개${v.isMain ? ' → 아래 점수표에서 칸을 누르세요' : ''}</div>
+        <div class="sd-dice">${v.dice.map(d => `<div class="sd-die ${d.from}">${d.v}<span class="src">${srcLabel[d.from]}</span></div>`).join('')}</div><div class="sd-gap"></div>`;
     }
     const row = c => {
       const mine = v.sheets[0][c], opp = v.sheets[1][c];
@@ -461,17 +467,17 @@ R.secretdice = (el, v, ctx) => {
     };
     el.innerHTML = `
       ${v.over ? '' : timerHtml(v.deadline, myWait, 40000, myWait ? '내 차례' : '상대 차례')}
-      <div class="row" style="justify-content:space-between;margin-bottom:10px">${v.over ? '' : role}
-        <span class="muted">라운드 ${Math.min(v.round, v.rounds)}/${v.rounds} · 3개 고정: 나 ${v.threeUsed[0] ? '사용함' : '남음'} / 상대 ${v.threeUsed[1] ? '사용함' : '남음'}</span></div>
+      <div class="row sd-info">${v.over ? '' : role}
+        <span class="muted small">R ${Math.min(v.round, v.rounds)}/${v.rounds} · 3개고정 나 ${v.threeUsed[0] ? '✗' : '○'} 상대 ${v.threeUsed[1] ? '✗' : '○'}</span></div>
       ${statusHtml(st, myWait)}
       ${v.autoNote ? `<div class="panel small" style="text-align:center;color:var(--accent2)">${v.autoNote}</div>` : ''}
-      ${v.last && !v.over ? `<div class="panel small" style="text-align:center">지난 라운드: ${v.last.mine ? '내가' : '상대가'} <b>${LABEL[v.last.cat]}</b>에 <b>${v.last.v}점</b> 기록 (${v.last.dice.join(' · ')})</div>` : ''}
+      ${v.last && !v.over ? `<div class="panel small lastline">지난 판: ${v.last.mine ? '내가' : '상대가'} <b>${LABEL[v.last.cat]}</b>에 <b>${v.last.v}점</b> 기록 (${v.last.dice.join(' · ')})</div>` : ''}
       ${v.over ? '' : `<div class="panel">${body}</div>`}
-      <div class="panel"><table class="sheet">
-        <tr><th>항목</th><th>나</th><th>상대</th></tr>
-        ${CATS.map(row).join('')}
-        <tr class="sum"><td>총점</td><td>${v.totals[0]}</td><td>${v.totals[1]}</td></tr>
-      </table></div>`;
+      <div class="panel sd-sheets">
+        <table class="sheet"><tr><th>항목</th><th>나</th><th>상대</th></tr>${CATS.slice(0, 7).map(row).join('')}</table>
+        <table class="sheet"><tr><th>항목</th><th>나</th><th>상대</th></tr>${CATS.slice(7).map(row).join('')}
+          <tr class="sum"><td>총점</td><td>${v.totals[0]}</td><td>${v.totals[1]}</td></tr></table>
+      </div>`;
     el.querySelectorAll('.sd-die.click').forEach(d => (d.onclick = () => {
       const k = Number(d.dataset.k);
       sdSel = sdSel.includes(k) ? sdSel.filter(x => x !== k) : [...sdSel, k];
