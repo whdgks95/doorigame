@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>두리게임 - 둘이 하는 두뇌 게임</title>
+<meta name="description" content="더 지니어스, 피의 게임의 1:1 게임을 친구와 링크 하나로 바로 즐기세요.">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<header class="top">
+  <a class="logo" href="/">두리<span>게임</span><small>둘이 하는 두뇌 게임</small></a>
+</header>
+<div class="home">
+  <aside class="sidebar" id="list"></aside>
+  <section class="detail" id="detail"></section>
+</div>
+<div class="toast hide" id="toast"></div>
+<script src="/meta.js"></script>
+<script>
+const list = document.getElementById('list');
+const detail = document.getElementById('detail');
+let current = (location.hash || '').slice(1) || GAMES[0].id;
+if (!GAME_BY_ID[current]) current = GAMES[0].id;
+
+function renderList() {
+  const shows = [...new Set(GAMES.map(g => g.show))];
+  list.innerHTML = shows.map(show => `
+    <h3>${show}</h3>
+    ${GAMES.filter(g => g.show === show).map(g => `
+      <div class="game-item ${g.id === current ? 'active' : ''}" data-id="${g.id}">
+        <div class="ic">${g.icon}</div>
+        <div><div class="nm">${g.name}</div><div class="tg">${g.time} · 2인</div></div>
+      </div>`).join('')}`).join('');
+}
+
+function renderDetail() {
+  const g = GAME_BY_ID[current];
+  detail.innerHTML = `
+    <div class="card">
+      <span class="badge">${g.show}</span>
+      <h1>${g.icon} ${g.name}</h1>
+      <div class="sub">${g.tagline}</div>
+      <div class="create-box">
+        <button class="primary" id="create">방 만들기</button>
+        <div class="hint">방을 만들면 링크가 생겨요. 링크를 친구에게 보내면 바로 1:1 대결이 시작됩니다.</div>
+      </div>
+      <div class="help"><h4 style="color:var(--text);font-size:18px">📖 플레이 방법</h4>${g.help}</div>
+    </div>`;
+  document.getElementById('create').onclick = createRoom;
+}
+
+async function createRoom(e) {
+  e.target.disabled = true;
+  try {
+    const res = await fetch('/api/rooms', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ gameId: current }) });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    location.href = '/r/' + data.roomId;
+  } catch (err) {
+    toast('방을 만들지 못했어요. 잠시 후 다시 시도해 주세요.');
+    e.target.disabled = false;
+  }
+}
+
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.remove('hide');
+  clearTimeout(t._h); t._h = setTimeout(() => t.classList.add('hide'), 2500);
+}
+
+list.addEventListener('click', e => {
+  const item = e.target.closest('.game-item');
+  if (!item) return;
+  current = item.dataset.id;
+  history.replaceState(null, '', '#' + current);
+  renderList(); renderDetail();
+  if (window.innerWidth < 760) detail.scrollIntoView({ behavior: 'smooth' });
+});
+renderList(); renderDetail();
+</script>
+</body>
+</html>
