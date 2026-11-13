@@ -266,6 +266,92 @@ R.janggi12 = (el, v, ctx) => {
   draw();
 };
 
+/* ───────── 미스터리 사인 ───────── */
+let msDraft = '', msPropDraft = '', msKey = '';
+R.mysterysign = (el, v, ctx) => {
+  const key = v.round + ':' + v.hints.length + ':' + v.phase + ':' + v.slot;
+  if (key !== msKey) { msPropDraft = ''; if (v.phase !== 'answer') msDraft = ''; msKey = key; }
+  const solverText = r => r.solver === 'me' ? '<b class="win">내가 맞혔어요! +1</b>' : r.solver === 'opp' ? '<b class="lose">상대가 맞혔어요</b>' : '<span class="muted">아무도 못 맞혔어요 (무효)</span>';
+  let st = '', mineTurn = false, timerLabel = '';
+  if (v.phase === 'propose') {
+    mineTurn = v.myPropose;
+    const part = v.slot === 0 ? '앞' : '뒤';
+    st = v.myPropose ? `힌트를 만들 <b>${part} 숫자</b>를 내세요.` : `상대가 ${part} 숫자를 고르는 중...`;
+    timerLabel = v.myPropose ? `${part} 숫자 내기` : '상대 차례';
+  } else if (v.phase === 'answer') {
+    mineTurn = v.canAnswer;
+    st = !v.canAnswer ? '틀려서 이번 힌트의 기회는 상대에게 넘어갔어요.'
+      : v.oppLocked ? '상대가 틀렸어요! 이제 나만 맞힐 수 있어요.'
+      : v.myPassed ? '패스했어요. 상대도 패스하면 다음 힌트로 넘어가요. (그 전에 답을 알면 맞혀도 돼요)'
+      : '규칙을 찾았다면 답을 외치고, 모르겠으면 패스하세요.';
+    timerLabel = '이번 힌트 남은 시간';
+  } else if (v.phase === 'roundEnd') { timerLabel = '다음 라운드까지'; }
+  const lastAttempt = v.attempts[v.attempts.length - 1];
+  el.innerHTML = `
+    ${v.over ? '' : timerHtml(v.deadline, mineTurn, v.phase === 'answer' ? 180000 : v.phase === 'roundEnd' ? 8000 : 30000, timerLabel)}
+    <div class="panel"><div class="row" style="justify-content:space-around">
+      <div style="text-align:center"><div class="muted small">나</div><div class="score-big win">${v.scores[0]}</div></div>
+      <div style="text-align:center"><div class="muted small">라운드</div><div class="score-big">${v.round}<span class="muted" style="font-size:20px">/${v.rounds}</span></div></div>
+      <div style="text-align:center"><div class="muted small">상대</div><div class="score-big lose">${v.scores[1]}</div></div>
+    </div></div>
+    ${v.result ? `<div class="ms-reveal"><div>${solverText(v.result)}</div>
+      <div class="rule">규칙: ${esc(v.result.rule)}</div>
+      <div>정답 ${v.result.problem.a} ? ${v.result.problem.b} = <b>${v.result.answer}</b></div></div>` : ''}
+    ${v.over ? '' : statusHtml(st, mineTurn)}
+    ${v.note ? `<div class="panel small" style="text-align:center;color:var(--accent2)">${v.note}</div>` : ''}
+    <div class="panel">
+      <div class="muted small" style="text-align:center">문제</div>
+      <div class="ms-problem">${v.problem.a}<span class="sign">?</span>${v.problem.b} = <span class="q">${v.result ? v.result.answer : '?'}</span></div>
+      ${v.phase === 'answer' ? `<form id="af" class="ms-answer">
+        <input id="ai" type="number" inputmode="numeric" placeholder="정답" value="${esc(msDraft)}" ${v.canAnswer ? '' : 'disabled'}>
+        <button class="primary" ${v.canAnswer ? '' : 'disabled'}>정답!</button>
+        <button type="button" id="pass" ${v.myPassed ? 'disabled' : ''} style="background:#3b2f8f">${v.myPassed ? '패스함 ✓' : '패스'}</button></form>
+        <div class="row small" style="margin-top:10px;gap:20px">
+          <span>나: ${v.myLocked ? '<b class="lose">오답 (자동 패스)</b>' : v.myPassed ? '<b style="color:var(--accent2)">패스</b>' : '고민 중'}</span>
+          <span>상대: ${v.oppLocked ? '<b class="lose">오답 (자동 패스)</b>' : v.oppPassed ? '<b style="color:var(--accent2)">패스</b>' : '고민 중'}</span></div>
+        <div class="muted small" style="text-align:center;margin-top:6px">맞히면 +1 · 틀리면 -1 · 둘 다 패스하면 다음 힌트 (힌트당 최대 3분)</div>` : ''}
+      ${v.phase === 'propose' ? `<div style="text-align:center;margin-top:6px">
+        <div class="ms-hint" style="display:inline-block;min-width:240px">${v.frontNumber ?? (v.slot === 0 && v.myPropose ? '<span class="q">앞</span>' : '□')}<span class="sign">?</span>${v.slot === 1 && v.myPropose ? '<span class="q">뒤</span>' : '□'} = □</div>
+        ${v.myPropose ? `<form id="pf" class="ms-answer" style="margin-top:12px">
+          <input id="pi" type="number" min="1" max="999" placeholder="1~999" value="${esc(msPropDraft)}">
+          <button class="primary">${v.slot === 0 ? '앞' : '뒤'} 숫자 내기</button></form>` : ''}</div>` : ''}
+    </div>
+    <div class="panel">
+      <div class="muted small" style="margin-bottom:8px">공개된 힌트 (${v.hints.length}/${v.maxHints})</div>
+      <div class="ms-hints">${v.hints.map((h, k) => `<div class="ms-hint ${k === v.hints.length - 1 && v.phase === 'answer' ? 'new' : ''}"><small>힌트 ${k + 1}</small>${h.x}<span class="sign">?</span>${h.y} = ${h.z}</div>`).join('') || '<div class="muted">아직 힌트가 없어요. 숫자를 넣어 규칙을 알아내세요!</div>'}</div>
+      ${v.attempts.length ? `<div class="feed" style="margin-top:12px">${v.attempts.slice().reverse().map(t => `<div><b>${t.mine ? '나' : '상대'}</b>: ${t.n} → <b class="${t.ok ? 'win' : 'lose'}">${t.ok ? '정답 +1' : '오답 -1'}</b> <span class="muted small">(힌트 ${t.hint}개 공개 시점)</span></div>`).join('')}</div>` : ''}
+    </div>
+    ${v.history.length ? `<div class="panel"><div class="muted small" style="margin-bottom:6px">지난 라운드 규칙</div><table class="log">
+      <tr><th>R</th><th>규칙</th><th>문제</th><th>결과</th></tr>
+      ${v.history.map(h => `<tr><td>${h.round}</td><td>${esc(h.rule)}</td><td>${h.problem.a} ? ${h.problem.b} = ${h.answer}</td><td>${h.solver === 'me' ? '<b class="win">나</b>' : h.solver === 'opp' ? '<b class="lose">상대</b>' : '무효'}</td></tr>`).join('')}</table></div>` : ''}`;
+  const af = document.getElementById('af');
+  if (af) {
+    const ai = document.getElementById('ai');
+    ai.oninput = () => (msDraft = ai.value);
+    if (v.canAnswer) ai.focus();
+    af.onsubmit = e => {
+      e.preventDefault();
+      if (ai.value === '' || !Number.isInteger(Number(ai.value))) return ctx.toast('정수를 입력하세요.');
+      ctx.send({ type: 'answer', n: Number(ai.value) });
+      msDraft = '';
+    };
+  }
+  const passBtn = document.getElementById('pass');
+  if (passBtn) passBtn.onclick = () => ctx.send({ type: 'pass' });
+  const pf = document.getElementById('pf');
+  if (pf) {
+    const pi = document.getElementById('pi');
+    pi.oninput = () => (msPropDraft = pi.value);
+    pi.focus();
+    pf.onsubmit = e => {
+      e.preventDefault();
+      const n = Number(pi.value);
+      if (!Number.isInteger(n) || n < 1 || n > 999) return ctx.toast('1~999 사이 정수를 입력하세요. (0 제외)');
+      ctx.send({ type: 'propose', n });
+    };
+  }
+};
+
 /* ───────── 미스터리 넘버 ───────── */
 let dvSel = null, dvKey = '';
 R.davinci = (el, v, ctx) => {

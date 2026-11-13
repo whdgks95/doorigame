@@ -221,3 +221,18 @@ table.sheet tr.sum td { font-weight: 800; background: var(--panel2); }
 .fix-opts div { background: var(--panel2); border-radius: 10px; padding: 8px; text-align: center; border: 1px solid transparent; }
 .fix-opts div.on { border-color: var(--accent2); }
 .fix-opts div.off { opacity: .4; text-decoration: line-through; }
+
+/* 미스터리 사인 */
+.ms-problem { text-align: center; font-size: 52px; font-weight: 900; letter-spacing: 2px; padding: 10px 0; }
+.ms-problem .sign { display: inline-block; width: 64px; height: 64px; line-height: 64px; border-radius: 14px; background: var(--accent); color: #fff; margin: 0 14px; font-size: 40px; }
+.ms-problem .q { color: var(--accent2); }
+.ms-hints { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px; }
+.ms-hint { background: var(--panel2); border-radius: 12px; padding: 10px 14px; font-size: 22px; font-weight: 800; text-align: center; font-variant-numeric: tabular-nums; }
+.ms-hint .sign { color: var(--accent); margin: 0 6px; }
+.ms-hint.new { outline: 2px solid var(--accent2); }
+.ms-hint small { display: block; font-size: 11px; color: var(--muted); font-weight: 500; }
+.ms-answer { display: flex; gap: 10px; justify-content: center; align-items: center; flex-wrap: wrap; }
+.ms-answer input { width: 160px; font-size: 26px; text-align: center; }
+.ms-answer button { font-size: 20px; padding: 12px 28px; }
+.ms-reveal { text-align: center; padding: 18px; border-radius: 16px; background: var(--panel); border: 2px solid var(--accent2); margin-bottom: 16px; }
+.ms-reveal .rule { font-size: 22px; font-weight: 900; color: var(--accent2); margin: 6px 0; }

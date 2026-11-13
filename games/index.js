@@ -4,6 +4,7 @@ const list = [
   require('./gyulhap'),
   require('./indian'),
   require('./janggi12'),
+  require('./mysterysign'),
   require('./davinci'),
   require('./secretdice'),
 ];
