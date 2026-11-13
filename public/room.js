@@ -41,7 +41,29 @@
   socket.on('connect', () => { if (!stopped) join(); });
   socket.on('kicked', () => { stopped = true; socket.disconnect(); centerMsg('📑', '다른 창에서 이 방에 들어왔어요', '한 사람은 한 창에서만 플레이할 수 있어요. 이 창은 닫아도 됩니다.'); });
   socket.on('disconnect', () => { if (!stopped && state) toast('연결이 끊겼어요. 다시 연결하는 중...'); });
-  socket.on('state', s => { state = s; render(); });
+  socket.on('state', s => {
+    state = s;
+    if (s.room.serverNow) window.CLOCK_OFFSET = s.room.serverNow - Date.now();
+    render();
+    tickTimers();
+  });
+
+  // 턴 타이머 표시 갱신
+  function tickTimers() {
+    const now = Date.now() + (window.CLOCK_OFFSET || 0);
+    document.querySelectorAll('.turn-timer[data-deadline]').forEach(t => {
+      const total = Number(t.dataset.total) || 30000;
+      const left = Math.max(0, Number(t.dataset.deadline) - now);
+      const sec = Math.ceil(left / 1000);
+      const fill = t.querySelector('.tt-fill');
+      if (fill) fill.style.width = (100 * left / total).toFixed(1) + '%';
+      const label = t.querySelector('.tt-sec');
+      if (label) label.textContent = sec + '초';
+      t.classList.toggle('warn', sec <= 10 && sec > 5);
+      t.classList.toggle('danger', sec <= 5);
+    });
+  }
+  setInterval(tickTimers, 100);
 
   function askName() {
     const bg = document.createElement('div');

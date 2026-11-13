@@ -48,6 +48,22 @@ function startGame(room) {
   room.state = games[room.gameId].init();
   room.status = 'playing';
   room.rematch = [false, false];
+  schedule(room);
+}
+
+// 턴 제한 시간: 게임 상태에 deadline이 있으면 시간이 지났을 때 game.timeout()으로 자동 진행
+function schedule(room) {
+  clearTimeout(room.timer);
+  const game = games[room.gameId];
+  if (room.status !== 'playing' || !game.timeout || !room.state || !room.state.deadline) return;
+  const deadline = room.state.deadline;
+  room.timer = setTimeout(() => {
+    if (room.status !== 'playing' || room.state.deadline !== deadline) return;
+    try { game.timeout(room.state); } catch (e) { console.error(e); return; }
+    if (room.state.over) room.status = 'over';
+    broadcast(room);
+    schedule(room);
+  }, Math.max(0, deadline - Date.now()) + 300);
 }
 
 function broadcast(room) {
@@ -64,6 +80,7 @@ function broadcast(room) {
         you: i,
         players: room.players.map(q => ({ name: q.name, online: !!q.socketId })),
         rematch: room.rematch,
+        serverNow: Date.now(),
       },
       view: room.state ? game.view(room.state, i) : null,
     });
@@ -115,6 +132,7 @@ io.on('connection', socket => {
     if (err) return ack({ error: err });
     if (room.state.over) room.status = 'over';
     room.lastActive = Date.now();
+    schedule(room);
     ack({ ok: true });
     broadcast(room);
   });
@@ -144,7 +162,7 @@ setInterval(() => {
   const now = Date.now();
   for (const [id, room] of rooms) {
     const anyoneOnline = room.players.some(p => p.socketId);
-    if (!anyoneOnline && now - room.lastActive > ROOM_TTL_MS) rooms.delete(id);
+    if (!anyoneOnline && now - room.lastActive > ROOM_TTL_MS) { clearTimeout(room.timer); rooms.delete(id); }
   }
 }, 10 * 60 * 1000).unref();
 

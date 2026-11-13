@@ -5,6 +5,6 @@ const list = [
   require('./indian'),
   require('./janggi12'),
   require('./davinci'),
-  require('./yacht'),
+  require('./secretdice'),
 ];
 module.exports = Object.fromEntries(list.map(g => [g.id, g]));

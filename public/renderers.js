@@ -2,6 +2,11 @@
 window.RENDERERS = {};
 const R = window.RENDERERS;
 const statusHtml = (text, mine) => `<div class="status ${mine ? 'my' : ''}">${text}</div>`;
+// 턴 타이머 (room.js가 0.1초마다 갱신)
+const timerHtml = (deadline, mine, total, label) => deadline
+  ? `<div class="turn-timer ${mine ? 'mine' : 'opp'}" data-deadline="${deadline}" data-total="${total}">
+      <div class="tt-label">${mine ? '⏱' : '⏳'} ${label}</div><div class="tt-bar"><div class="tt-fill"></div></div><div class="tt-sec"></div></div>`
+  : '';
 const resultWord = r => (r === 'win' ? '<b class="win">승</b>' : r === 'lose' ? '<b class="lose">패</b>' : '무');
 
 /* ───────── 흑과 백 ───────── */
@@ -118,43 +123,59 @@ R.gyulhap = (el, v, ctx) => {
 
 /* ───────── 인디언 포커 ───────── */
 let ipDraft = '';
+const chipStacks = n => {
+  // 10, 5, 1 단위 칩을 쌓아 보여줌
+  const tens = Math.floor(n / 10), fives = Math.floor((n % 10) / 5), ones = n % 5;
+  const stack = (cnt, cls) => cnt ? `<div class="chipstack">${Array(Math.min(cnt, 10)).fill(`<div class="chipdisc ${cls}"></div>`).join('')}</div>` : '';
+  return `<div class="chips">${stack(tens, 'c10')}${stack(fives, 'c5')}${stack(ones, 'c1')}</div>`;
+};
+const actText = a => {
+  const who = a.mine ? '나' : '상대';
+  const t = a.timeout ? ' (시간 초과)' : '';
+  if (a.type === 'raise') return `${who}: 레이즈 +${a.amount}`;
+  if (a.type === 'call') return `${who}: 콜 ${a.amount}${t}`;
+  if (a.type === 'check') return `${who}: 체크${t}`;
+  return `${who}: 다이${t}`;
+};
 R.indian = (el, v, ctx) => {
-  let st = '';
-  if (!v.over) st = v.myTurn ? (v.need > 0 ? `상대가 ${v.need}개 더 걸었어요. 콜 / 레이즈 / 다이?` : '내 차례예요. 체크하거나 레이즈하세요.') : '상대가 고민 중...';
   const last = v.last;
   el.innerHTML = `
-    ${statusHtml(st, v.myTurn)}
+    ${v.over ? '' : timerHtml(v.deadline, v.myTurn, 30000, v.myTurn ? '내 차례' : '상대 차례')}
     ${last ? `<div class="panel small" style="text-align:center">
-      지난 라운드(${last.round}): 내 카드 <b>${last.myCard}</b> vs 상대 카드 <b>${last.oppCard}</b> →
-      ${resultWord(last.result)} ${last.reason === 'fold' ? `(${last.folder === 'me' ? '내가' : '상대가'} 다이)` : '(승부)'}
-      · 판돈 ${last.pot}${last.penalty ? ` · <b class="lose">10 다이 벌칙 ${last.penalty}개</b>` : ''}</div>` : ''}
-    <div class="panel"><div class="row" style="justify-content:space-around;align-items:flex-start">
-      <div style="text-align:center">
-        <div class="muted small" style="margin-bottom:8px">상대 카드</div>
-        <div class="pcard" style="margin:0 auto">${v.oppCard ?? '-'}</div>
-        <div style="margin-top:10px">상대 칩 <b>${v.oppChips}</b></div>
-        <div class="muted small">이번 판에 건 칩 ${v.oppBet}</div>
+      지난 라운드: 내 카드 <b>${last.myCard}</b> vs 상대 카드 <b>${last.oppCard}</b> →
+      ${resultWord(last.result)} ${last.reason === 'fold' ? `(${last.folder === 'me' ? '내가' : '상대가'} 다이)` : '(카드 공개)'}
+      · 판돈 ${last.pot}${last.penalty ? ` · <b class="lose">10 들고 다이 벌칙 ${last.penalty}개</b>` : ''}</div>` : ''}
+    <div class="ip-table">
+      <div class="ip-who">상대</div>
+      <div class="ip-side">
+        <div class="pcard">${v.oppCard ?? '-'}</div>
+        <div class="ip-bet ${v.need > 0 ? 'hot' : ''}"><div class="lbl">상대가 이번 판에 건 칩</div><div class="num">${v.oppBet}</div>${chipStacks(v.oppBet)}</div>
+        <div class="ip-bank"><div class="lbl">상대 보유 칩</div><div class="num">${v.oppChips}</div></div>
       </div>
-      <div style="text-align:center;align-self:center">
-        <div class="muted small">판돈</div><div class="score-big" style="color:var(--accent2)">${v.pot}</div>
-        <div class="muted small">라운드 ${v.round} · 남은 카드 ${v.deckLeft}장</div>
-        ${v.reshuffled ? '<div class="small" style="color:var(--accent2)">카드를 새로 섞었어요</div>' : ''}
+      <div class="ip-center">
+        <div class="muted small">판돈</div>
+        <div class="ip-pot">${v.pot}</div>
+        ${v.myTurn && v.need > 0 ? `<div class="ip-callout">상대가 ${v.need}개 더 걸었어요!</div>` : ''}
+        <div class="ip-acts">${v.actions.map(a => `<span class="${a.mine ? 'me' : 'opp'}">${actText(a)}</span>`).join('') || '<span>기본 칩 1개씩 냈어요</span>'}</div>
+        <div class="muted small" style="margin-top:8px">라운드 ${v.round} · 남은 카드 ${v.deckLeft}장${v.reshuffled ? ' · <b style="color:var(--accent2)">카드를 새로 섞었어요</b>' : ''}</div>
       </div>
-      <div style="text-align:center">
-        <div class="muted small" style="margin-bottom:8px">내 카드 (안 보여요)</div>
-        <div class="pcard back" style="margin:0 auto">?</div>
-        <div style="margin-top:10px">내 칩 <b>${v.myChips}</b></div>
-        <div class="muted small">이번 판에 건 칩 ${v.myBet}</div>
+      <div class="ip-side">
+        <div class="pcard back">?</div>
+        <div class="ip-bet"><div class="lbl">내가 이번 판에 건 칩</div><div class="num">${v.myBet}</div>${chipStacks(v.myBet)}</div>
+        <div class="ip-bank"><div class="lbl">내 보유 칩</div><div class="num">${v.myChips}</div></div>
       </div>
-    </div></div>
-    ${v.myTurn ? `<div class="panel"><div class="row">
-      <button id="fold" style="background:#5a2323">다이</button>
-      <button id="call">${v.need > 0 ? `콜 (${Math.min(v.need, v.myChips)}개)` : '체크'}</button>
-      <form id="rf" class="row" style="gap:8px">
-        <input id="ri" type="number" min="1" max="${v.maxRaise}" value="${esc(ipDraft)}" placeholder="1~${v.maxRaise}" style="width:110px" ${v.maxRaise < 1 ? 'disabled' : ''}>
-        <button class="primary" ${v.maxRaise < 1 ? 'disabled' : ''}>레이즈</button>
+      <div class="ip-who" style="margin-top:6px">나 (내 카드는 안 보여요)</div>
+    </div>
+    ${v.myTurn ? `<div class="panel" style="margin-top:14px"><div class="ip-controls">
+      <button id="fold" class="big" style="background:#5a2323">다이</button>
+      <button id="call" class="big">${v.need > 0 ? `콜 (${Math.min(v.need, v.myChips)}개)` : '체크'}</button>
+      <form id="rf" class="row" style="gap:6px">
+        <div class="ip-quick">${[1, 3, 5].filter(x => x <= v.maxRaise).map(x => `<button type="button" data-q="${x}">+${x}</button>`).join('')}
+          ${v.maxRaise >= 1 ? `<button type="button" data-q="${v.maxRaise}">올인 +${v.maxRaise}</button>` : ''}</div>
+        <input id="ri" type="number" min="1" max="${v.maxRaise}" value="${esc(ipDraft)}" placeholder="1~${v.maxRaise}" style="width:90px" ${v.maxRaise < 1 ? 'disabled' : ''}>
+        <button class="primary big" ${v.maxRaise < 1 ? 'disabled' : ''}>레이즈</button>
       </form></div>
-      <div class="muted small" style="text-align:center;margin-top:8px">레이즈 = 상대만큼 맞춘 뒤 입력한 개수만큼 더 걸기</div></div>` : ''}`;
+      <div class="muted small" style="text-align:center;margin-top:8px">레이즈 = 상대만큼 맞춘 뒤 입력한 개수만큼 더 걸기 · 시간이 지나면 ${v.need > 0 ? '자동 다이' : '자동 체크'}</div></div>` : ''}`;
   if (v.myTurn) {
     document.getElementById('fold').onclick = () => {
       if (confirm('다이할까요? 내 카드가 10이면 칩 10개 벌칙이 있어요.')) ctx.send({ type: 'fold' });
@@ -162,6 +183,7 @@ R.indian = (el, v, ctx) => {
     document.getElementById('call').onclick = () => ctx.send({ type: 'call' });
     const ri = document.getElementById('ri');
     ri.oninput = () => (ipDraft = ri.value);
+    el.querySelectorAll('[data-q]').forEach(b => (b.onclick = () => { ri.value = b.dataset.q; ipDraft = ri.value; }));
     document.getElementById('rf').onsubmit = e => {
       e.preventDefault();
       const x = Number(ri.value);
@@ -301,44 +323,84 @@ R.davinci = (el, v, ctx) => {
 };
 
 /* ───────── 시크릿 다이스 ───────── */
-let ytHeld = [false, false, false, false, false], ytKey = '';
-R.yacht = (el, v, ctx) => {
-  const key = v.rollsLeft + JSON.stringify(v.dice) + v.myTurn;
-  if (key !== ytKey) { ytHeld = v.held.slice(); ytKey = key; }
-  const LABEL = { ones: '1 (에이스)', twos: '2', threes: '3', fours: '4', fives: '5', sixes: '6', choice: '초이스', fourKind: '포 오브 어 카인드', fullHouse: '풀하우스', smallStraight: '스몰 스트레이트', largeStraight: '라지 스트레이트', yacht: '요트' };
+let sdSel = [], sdDraft = [], sdKey = '';
+R.secretdice = (el, v, ctx) => {
+  const key = v.round + v.phase;
+  if (key !== sdKey) { sdSel = []; sdDraft = []; sdKey = key; }
+  const LABEL = { ones: '1', twos: '2', threes: '3', fours: '4', fives: '5', sixes: '6', total: '총합', fullHouse: '2·3 다이스 (풀하우스)', straight4: '4연속', straight5: '5연속', four: '4 다이스', fiveJoker: '5 다이스 / 조커' };
   const CATS = Object.keys(LABEL);
-  const PIPS = ['', '⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
-  const canPick = v.myTurn && v.rolled;
+  const role = v.isMain ? '<span class="role main">이번 라운드 주 플레이어: 나</span>' : '<span class="role sub">이번 라운드 주 플레이어: 상대</span>';
+  const myWait = v.waitingFor && v.waitingFor[0];
   let st = '';
-  if (!v.over) st = v.myTurn ? (v.rolled ? `주사위를 눌러 고정하고 다시 굴리거나, 점수표에서 항목을 고르세요. (남은 굴림 ${v.rollsLeft}회)` : '주사위를 굴리세요!') : '상대 차례예요...';
+  if (!v.over) {
+    if (v.phase === 'fix') st = v.isMain ? '딜러 주사위 중 고정할 주사위를 고르세요.' : '상대가 고정할 주사위를 고르는 중...';
+    else if (v.phase === 'pick') st = v.myPick ? (v.oppPicked ? '공개 중...' : '상대가 숫자를 고르는 중...') : `낼 숫자 ${v.myNeed}개를 고르세요. (상대에게 비공개)`;
+    else if (v.phase === 'score') st = v.isMain ? '완성된 주사위 5개로 점수표에서 칸을 고르세요.' : '상대가 점수를 기록하는 중...';
+  }
+  const fixInfo = n => n === 1 ? '나 2개 · 상대 2개' : n === 2 ? '나 1개 · 상대 2개' : '나 1개 · 상대 1개';
+  const srcLabel = { fixed: '고정', main: v.isMain ? '내 숫자' : '상대 숫자', sub: v.isMain ? '상대 숫자' : '내 숫자' };
   const draw = () => {
+    let body = '';
+    if (v.phase === 'fix') {
+      const n = sdSel.length;
+      body = `<div class="muted small" style="text-align:center;margin-bottom:10px">딜러가 던진 주사위</div>
+        <div class="sd-dice">${v.dealer.map((d, k) => `<div class="sd-die ${v.isMain ? 'click' : ''} ${sdSel.includes(k) ? 'sel' : ''}" data-k="${k}">${d}</div>`).join('')}</div>
+        ${v.isMain ? `<div class="fix-opts">${[1, 2, 3].map(c => `<div class="${n === c ? 'on' : ''} ${c === 3 && v.threeUsed[0] ? 'off' : ''}"><b>${c}개 고정</b><br>${fixInfo(c)}${c === 3 ? '<br>(게임당 1번)' : ''}</div>`).join('')}</div>
+          <div class="row" style="margin-top:14px"><button class="primary" id="fix" ${n >= 1 && !(n === 3 && v.threeUsed[0]) ? '' : 'disabled'}>${n ? n + '개 고정하기' : '주사위를 눌러 고르세요'}</button></div>` : ''}`;
+    } else if (v.phase === 'pick') {
+      const fixedDice = v.fixed.map(k => v.dealer[k]);
+      const mine = v.myPick || sdDraft;
+      body = `<div class="muted small" style="text-align:center;margin-bottom:10px">고정된 주사위 + 두 사람이 낼 숫자</div>
+        <div class="sd-dice">
+          ${fixedDice.map(d => `<div class="sd-die fixed">${d}<span class="src">고정</span></div>`).join('')}
+          ${Array.from({ length: v.myNeed }, (_, k) => `<div class="sd-die ${mine[k] ? 'main' : 'empty'}">${mine[k] || '?'}<span class="src">내 숫자</span></div>`).join('')}
+          ${Array.from({ length: v.oppNeed }, () => `<div class="sd-die empty">${v.oppPicked ? '✓' : '?'}<span class="src">상대 숫자</span></div>`).join('')}
+        </div>
+        <div style="height:18px"></div>
+        ${v.myPick ? `<div style="text-align:center" class="muted">숫자를 냈어요. ${v.oppPicked ? '' : '상대를 기다리는 중...'}</div>` : `
+          <div class="sd-pad">${[1, 2, 3, 4, 5, 6].map(n => `<button data-n="${n}" ${sdDraft.length >= v.myNeed ? 'disabled' : ''}>${n}</button>`).join('')}</div>
+          <div class="row" style="margin-top:12px"><button class="ghost" id="undo" ${sdDraft.length ? '' : 'disabled'}>지우기</button>
+            <button class="primary" id="submit" ${sdDraft.length === v.myNeed ? '' : 'disabled'}>비공개로 내기</button></div>`}
+        <div style="text-align:center;margin-top:10px" class="small">상대: ${v.oppPicked ? '<b class="win">제출 완료</b>' : '고르는 중...'}</div>`;
+    } else if (v.phase === 'score') {
+      body = `<div class="muted small" style="text-align:center;margin-bottom:10px">완성된 주사위 5개</div>
+        <div class="sd-dice">${v.dice.map(d => `<div class="sd-die ${d.from}">${d.v}<span class="src">${srcLabel[d.from]}</span></div>`).join('')}</div><div style="height:16px"></div>`;
+    }
     const row = c => {
       const mine = v.sheets[0][c], opp = v.sheets[1][c];
-      const pick = canPick && mine === undefined;
+      const pick = v.preview && mine === undefined;
       return `<tr class="${pick ? 'pick' : ''}" data-c="${c}"><td>${LABEL[c]}</td>
         <td class="me">${mine !== undefined ? mine : pick ? `<span class="preview">${v.preview[c]}</span>` : ''}</td>
         <td>${opp !== undefined ? opp : ''}</td></tr>`;
     };
     el.innerHTML = `
-      ${statusHtml(st, v.myTurn)}
-      ${v.last && !v.last.mine && !v.over ? `<div class="panel small" style="text-align:center">상대가 <b>${LABEL[v.last.cat]}</b>에 <b>${v.last.v}점</b>을 기록했어요 (${v.last.dice.map(d => PIPS[d]).join(' ')})</div>` : ''}
-      <div class="panel">
-        <div class="dice">${v.dice.map((d, k) => `<div class="die ${d ? '' : 'blank'} ${ytHeld[k] && v.rolled ? 'held' : ''}" data-k="${k}">${d ? d : '?'}</div>`).join('')}</div>
-        <div class="row" style="margin-top:14px">
-          <button class="primary" id="roll" ${v.myTurn && v.rollsLeft > 0 ? '' : 'disabled'}>🎲 굴리기 (${v.rollsLeft}회 남음)</button>
-        </div>
-        ${canPick ? '<div class="muted small" style="text-align:center;margin-top:8px">노란 테두리 주사위는 고정돼요</div>' : ''}
-      </div>
+      ${v.over ? '' : timerHtml(v.deadline, myWait, 40000, myWait ? '내 차례' : '상대 차례')}
+      <div class="row" style="justify-content:space-between;margin-bottom:10px">${v.over ? '' : role}
+        <span class="muted">라운드 ${Math.min(v.round, v.rounds)}/${v.rounds} · 3개 고정: 나 ${v.threeUsed[0] ? '사용함' : '남음'} / 상대 ${v.threeUsed[1] ? '사용함' : '남음'}</span></div>
+      ${statusHtml(st, myWait)}
+      ${v.autoNote ? `<div class="panel small" style="text-align:center;color:var(--accent2)">${v.autoNote}</div>` : ''}
+      ${v.last && !v.over ? `<div class="panel small" style="text-align:center">지난 라운드: ${v.last.mine ? '내가' : '상대가'} <b>${LABEL[v.last.cat]}</b>에 <b>${v.last.v}점</b> 기록 (${v.last.dice.join(' · ')})</div>` : ''}
+      ${v.over ? '' : `<div class="panel">${body}</div>`}
       <div class="panel"><table class="sheet">
         <tr><th>항목</th><th>나</th><th>상대</th></tr>
-        ${CATS.slice(0, 6).map(row).join('')}
-        <tr class="sum"><td>소계 (보너스 63점 이상)</td><td>${v.totals[0].upper}/63</td><td>${v.totals[1].upper}/63</td></tr>
-        <tr class="sum"><td>보너스 +35</td><td>${v.totals[0].bonus}</td><td>${v.totals[1].bonus}</td></tr>
-        ${CATS.slice(6).map(row).join('')}
-        <tr class="sum"><td>총점</td><td>${v.totals[0].total}</td><td>${v.totals[1].total}</td></tr>
+        ${CATS.map(row).join('')}
+        <tr class="sum"><td>총점</td><td>${v.totals[0]}</td><td>${v.totals[1]}</td></tr>
       </table></div>`;
-    if (canPick && v.rollsLeft > 0) el.querySelectorAll('.die').forEach(d => (d.onclick = () => { const k = Number(d.dataset.k); ytHeld[k] = !ytHeld[k]; draw(); }));
-    document.getElementById('roll').onclick = () => ctx.send({ type: 'roll', held: ytHeld });
+    el.querySelectorAll('.sd-die.click').forEach(d => (d.onclick = () => {
+      const k = Number(d.dataset.k);
+      sdSel = sdSel.includes(k) ? sdSel.filter(x => x !== k) : [...sdSel, k];
+      draw();
+    }));
+    const fix = document.getElementById('fix');
+    if (fix) fix.onclick = () => {
+      if (sdSel.length === 3 && !confirm('3개 고정은 게임에서 한 번만 쓸 수 있어요. 지금 쓸까요?')) return;
+      ctx.send({ type: 'fix', idx: sdSel });
+    };
+    el.querySelectorAll('.sd-pad button').forEach(b => (b.onclick = () => { if (sdDraft.length < v.myNeed) { sdDraft.push(Number(b.dataset.n)); draw(); } }));
+    const undo = document.getElementById('undo');
+    if (undo) undo.onclick = () => { sdDraft.pop(); draw(); };
+    const sub = document.getElementById('submit');
+    if (sub) sub.onclick = () => ctx.send({ type: 'pick', nums: sdDraft });
     el.querySelectorAll('tr.pick').forEach(tr => (tr.onclick = () => {
       const c = tr.dataset.c;
       if (confirm(`${LABEL[c]}에 ${v.preview[c]}점을 기록할까요?`)) ctx.send({ type: 'score', cat: c });

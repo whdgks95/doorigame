@@ -161,3 +161,63 @@ table.sheet tr.sum td { font-weight: 800; background: var(--panel2); }
   .jg-piece { width: 56px; height: 56px; font-size: 26px; }
   .numpad { grid-template-columns: repeat(6, 44px); }
 }
+
+/* 턴 타이머 */
+.turn-timer { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-radius: 14px; background: var(--panel); border: 2px solid var(--line); margin-bottom: 14px; }
+.turn-timer.mine { border-color: var(--accent2); }
+.turn-timer .tt-label { font-weight: 800; white-space: nowrap; }
+.turn-timer .tt-bar { flex: 1; height: 14px; background: #2a2f3c; border-radius: 99px; overflow: hidden; }
+.turn-timer .tt-fill { height: 100%; width: 100%; background: var(--win); border-radius: 99px; transition: width .1s linear, background .3s; }
+.turn-timer.opp .tt-fill { background: var(--blue); }
+.turn-timer .tt-sec { font-size: 22px; font-weight: 900; min-width: 56px; text-align: right; font-variant-numeric: tabular-nums; }
+.turn-timer.warn .tt-fill { background: var(--accent2); }
+.turn-timer.danger .tt-fill { background: var(--lose); }
+.turn-timer.danger.mine { animation: pulse .5s infinite alternate; }
+.turn-timer.danger .tt-sec { color: var(--lose); }
+@keyframes pulse { from { box-shadow: 0 0 0 0 rgba(255,107,107,.0); } to { box-shadow: 0 0 0 6px rgba(255,107,107,.35); } }
+
+/* 인디언 포커 테이블 */
+.ip-table { background: radial-gradient(ellipse at center, #1f5a3c 0%, #143826 70%); border: 6px solid #5b3a1e; border-radius: 28px; padding: 18px; }
+.ip-side { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.ip-who { font-weight: 900; font-size: 15px; color: #cfe9d9; margin-bottom: 6px; }
+.ip-bank { background: rgba(0,0,0,.35); border-radius: 14px; padding: 10px 16px; text-align: center; min-width: 120px; }
+.ip-bank .lbl { font-size: 12px; color: #a9c9b6; }
+.ip-bank .num { font-size: 30px; font-weight: 900; }
+.ip-bet { background: rgba(0,0,0,.45); border: 2px solid var(--accent2); border-radius: 16px; padding: 10px 18px; text-align: center; min-width: 160px; }
+.ip-bet .lbl { font-size: 13px; color: var(--accent2); font-weight: 700; }
+.ip-bet .num { font-size: 40px; font-weight: 900; color: #fff; line-height: 1.1; }
+.ip-bet.hot { box-shadow: 0 0 18px rgba(245,185,66,.6); }
+.chips { display: flex; justify-content: center; align-items: flex-end; height: 34px; margin-top: 4px; }
+.chipstack { display: flex; flex-direction: column-reverse; align-items: center; margin: 0 2px; }
+.chipdisc { width: 26px; height: 7px; border-radius: 50%; margin-top: -2px; border: 1px solid rgba(0,0,0,.4); }
+.chipdisc.c1 { background: #e5484d; } .chipdisc.c5 { background: #3b82f6; } .chipdisc.c10 { background: #222; border-color: #aaa; }
+.ip-center { text-align: center; padding: 16px 0; border-top: 1px dashed rgba(255,255,255,.15); border-bottom: 1px dashed rgba(255,255,255,.15); margin: 14px 0; }
+.ip-pot { font-size: 44px; font-weight: 900; color: var(--accent2); line-height: 1; }
+.ip-callout { display: inline-block; margin-top: 10px; background: var(--accent2); color: #222; font-weight: 900; padding: 8px 16px; border-radius: 99px; font-size: 17px; }
+.ip-acts { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; margin-top: 10px; }
+.ip-acts span { background: rgba(0,0,0,.4); padding: 4px 10px; border-radius: 99px; font-size: 13px; }
+.ip-acts span.opp { border: 1px solid #ff9a9a; } .ip-acts span.me { border: 1px solid #8fb6ff; }
+.ip-controls { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; align-items: center; }
+.ip-controls button.big { font-size: 18px; padding: 14px 26px; font-weight: 800; }
+.ip-quick { display: flex; gap: 6px; }
+.ip-quick button { padding: 8px 12px; }
+
+/* 시크릿 다이스 */
+.sd-dice { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+.sd-die { width: 66px; height: 66px; border-radius: 14px; background: #fff; color: #111; font-size: 36px; font-weight: 900; display: flex; align-items: center; justify-content: center; position: relative; border: 4px solid transparent; }
+.sd-die.click { cursor: pointer; }
+.sd-die.sel { border-color: var(--accent2); background: #ffe9b8; transform: translateY(-4px); }
+.sd-die.dim { opacity: .35; }
+.sd-die .src { position: absolute; bottom: -20px; left: 50%; transform: translateX(-50%); font-size: 11px; color: var(--muted); white-space: nowrap; font-weight: 600; }
+.sd-die.fixed { box-shadow: 0 0 0 3px #9aa0a6 inset; }
+.sd-die.main { background: #dbe8ff; }
+.sd-die.sub { background: #ffdcdc; }
+.sd-die.empty { background: var(--panel2); color: var(--muted); border: 2px dashed var(--line); }
+.sd-pad { display: flex; gap: 8px; justify-content: center; margin-top: 14px; }
+.sd-pad button { width: 54px; height: 54px; font-size: 24px; font-weight: 900; }
+.role { display: inline-block; padding: 4px 12px; border-radius: 99px; font-weight: 800; font-size: 14px; }
+.role.main { background: var(--accent2); color: #222; } .role.sub { background: var(--panel2); }
+.fix-opts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; font-size: 13px; margin-top: 14px; }
+.fix-opts div { background: var(--panel2); border-radius: 10px; padding: 8px; text-align: center; border: 1px solid transparent; }
+.fix-opts div.on { border-color: var(--accent2); }
+.fix-opts div.off { opacity: .4; text-decoration: line-through; }

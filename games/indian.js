@@ -2,11 +2,13 @@
 const { shuffle, coin, isInt } = require('./util');
 
 const START_CHIPS = 30;
+const TURN_MS = 30000;
 const newDeck = () => shuffle([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
 
 function startRound(s) {
   if (s.chips[0] <= 0 || s.chips[1] <= 0) {
     s.over = { winner: s.chips[0] > 0 ? 0 : 1 };
+    s.deadline = null;
     return;
   }
   if (s.deck.length < 2) { s.deck = newDeck(); s.reshuffled = true; } else s.reshuffled = false;
@@ -17,6 +19,8 @@ function startRound(s) {
   s.starter = s.round === 1 ? s.starter : 1 - s.starter;
   s.toAct = s.starter;
   s.acted = [false, false];
+  s.actions = []; // 이번 라운드 베팅 기록
+  s.deadline = Date.now() + TURN_MS;
 }
 
 function endRound(s, winner, reason) {
@@ -31,14 +35,54 @@ function endRound(s, winner, reason) {
       s.chips[winner] += penalty;
     }
   }
-  s.last = { round: s.round, cards: s.cards.slice(), winner, reason, pot, penalty };
+  s.last = { round: s.round, cards: s.cards.slice(), winner, reason, pot, penalty, actions: s.actions.slice() };
   s.log.push(s.last);
   startRound(s);
+}
+
+function act(s, i, a) {
+  const o = 1 - i;
+  const need = s.contrib[o] - s.contrib[i];
+  if (a.type === 'fold') {
+    s.actions.push({ who: i, type: 'fold', timeout: !!a.timeout });
+    endRound(s, o, 'fold');
+    return null;
+  }
+  if (a.type === 'call') {
+    const pay = Math.min(need, s.chips[i]);
+    s.chips[i] -= pay; s.contrib[i] += pay;
+    if (pay < need) { // 올인으로 다 못 맞춘 경우, 상대 초과분 돌려줌
+      const back = s.contrib[o] - s.contrib[i];
+      s.contrib[o] -= back; s.chips[o] += back;
+    }
+    s.acted[i] = true;
+    s.actions.push({ who: i, type: need > 0 ? 'call' : 'check', amount: pay, timeout: !!a.timeout });
+    if (need > 0 || s.acted[o]) {
+      const w = s.cards[0] > s.cards[1] ? 0 : s.cards[1] > s.cards[0] ? 1 : -1;
+      endRound(s, w, 'showdown');
+    } else { s.toAct = o; s.deadline = Date.now() + TURN_MS; }
+    return null;
+  }
+  if (a.type === 'raise') {
+    const x = Number(a.amount);
+    const maxRaise = Math.min(s.chips[i] - need, s.chips[o]);
+    if (maxRaise < 1) return '더 올릴 수 있는 칩이 없어요.';
+    if (!isInt(x) || x < 1 || x > maxRaise) return `1부터 ${maxRaise} 사이로 올릴 수 있어요.`;
+    const pay = need + x;
+    s.chips[i] -= pay; s.contrib[i] += pay;
+    s.acted[i] = true;
+    s.actions.push({ who: i, type: 'raise', amount: x, paid: pay });
+    s.toAct = o;
+    s.deadline = Date.now() + TURN_MS;
+    return null;
+  }
+  return '알 수 없는 행동이에요.';
 }
 
 module.exports = {
   id: 'indian',
   name: '인디언 포커',
+  TURN_MS,
   init() {
     const s = { deck: newDeck(), chips: [START_CHIPS, START_CHIPS], round: 0, starter: coin(), last: null, log: [], over: null };
     startRound(s);
@@ -47,39 +91,18 @@ module.exports = {
   action(s, i, a) {
     if (s.over) return '게임이 끝났어요.';
     if (s.toAct !== i) return '상대 차례예요.';
-    const o = 1 - i;
-    const need = s.contrib[o] - s.contrib[i];
-    if (a.type === 'fold') { endRound(s, o, 'fold'); return null; }
-    if (a.type === 'call') {
-      const pay = Math.min(need, s.chips[i]);
-      s.chips[i] -= pay; s.contrib[i] += pay;
-      if (pay < need) { // 올인으로 다 못 맞춘 경우, 상대 초과분 돌려줌
-        const back = s.contrib[o] - s.contrib[i];
-        s.contrib[o] -= back; s.chips[o] += back;
-      }
-      s.acted[i] = true;
-      if (need > 0 || s.acted[o]) {
-        const w = s.cards[0] > s.cards[1] ? 0 : s.cards[1] > s.cards[0] ? 1 : -1;
-        endRound(s, w, 'showdown');
-      } else s.toAct = o; // 체크
-      return null;
-    }
-    if (a.type === 'raise') {
-      const x = Number(a.amount);
-      const maxRaise = Math.min(s.chips[i] - need, s.chips[o]);
-      if (maxRaise < 1) return '더 올릴 수 있는 칩이 없어요.';
-      if (!isInt(x) || x < 1 || x > maxRaise) return `1부터 ${maxRaise} 사이로 올릴 수 있어요.`;
-      const pay = need + x;
-      s.chips[i] -= pay; s.contrib[i] += pay;
-      s.acted[i] = true;
-      s.toAct = o;
-      return null;
-    }
-    return '알 수 없는 행동이에요.';
+    return act(s, i, a);
+  },
+  // 시간 초과: 맞출 칩이 있으면 다이, 없으면 체크
+  timeout(s) {
+    if (s.over) return;
+    const i = s.toAct, need = s.contrib[1 - i] - s.contrib[i];
+    act(s, i, { type: need > 0 ? 'fold' : 'call', timeout: true });
   },
   view(s, i) {
     const o = 1 - i;
     const need = s.over ? 0 : s.contrib[o] - s.contrib[i];
+    const mapAct = a => ({ ...a, mine: a.who === i });
     return {
       round: s.round,
       oppCard: s.over ? null : s.cards[o],
@@ -91,11 +114,14 @@ module.exports = {
       maxRaise: Math.max(0, Math.min(s.chips[i] - need, s.chips[o])),
       deckLeft: s.deck.length,
       reshuffled: s.reshuffled,
+      actions: s.over ? [] : s.actions.map(mapAct),
+      deadline: s.over ? null : s.deadline,
       last: s.last && {
         round: s.last.round, myCard: s.last.cards[i], oppCard: s.last.cards[o],
         result: s.last.winner === -1 ? 'draw' : s.last.winner === i ? 'win' : 'lose',
         reason: s.last.reason, pot: s.last.pot, penalty: s.last.penalty,
         folder: s.last.reason === 'fold' ? (s.last.winner === i ? 'opp' : 'me') : null,
+        actions: s.last.actions.map(mapAct),
       },
       over: s.over && { result: s.over.winner === i ? 'win' : 'lose' },
     };
