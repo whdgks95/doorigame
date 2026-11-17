@@ -391,3 +391,113 @@ table.sheet tr.sum td { font-weight: 800; background: var(--panel2); }
   /* 힌트가 많아져도 화면 대신 힌트 칸 안에서만 스크롤 */
   .ms-hints { max-height: 156px; overflow-y: auto; }
 }
+
+/* 기본 / 심화 */
+.plus-tag { display: inline-block; font-size: 11px; font-weight: 800; color: #222; background: var(--accent2); padding: 1px 6px; border-radius: 6px; vertical-align: middle; }
+.plus-tag.big { font-size: 15px; padding: 3px 10px; border-radius: 8px; }
+.mode-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 14px 0 10px; max-width: 520px; }
+.mode-tabs button { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 12px 16px; border: 2px solid var(--line); background: var(--panel); text-align: left; }
+.mode-tabs button b { font-size: 16px; }
+.mode-tabs button span { font-size: 13px; color: var(--muted); }
+.mode-tabs button.on { border-color: var(--accent2); background: var(--panel2); }
+.mode-tabs button.on b { color: var(--accent2); }
+
+/* ───── 기록 줄 / 시트 ───── */
+.logbar { display: none; }
+.extra-head { display: none; }
+.me-c { color: #8fb6ff; } .opp-c { color: #ff9a9a; }
+.feed-title { margin-bottom: 4px; }
+.feed div { padding: 4px 0; border-bottom: 1px solid var(--line); }
+.extra .feed { max-height: 260px; overflow-y: auto; }
+.base-help { margin-top: 12px; } .base-help summary { cursor: pointer; color: var(--accent2); }
+
+/* 흑과 백 심화 */
+.bw-tile.회 { background: #777; color: #fff; }
+.chip-b.회 { background: #888; }
+.bw-form { display: flex; flex-direction: column; gap: 6px; align-items: center; }
+.bw-disguise { display: flex; gap: 6px; align-items: center; }
+.bw-disguise select { background: var(--panel2); color: var(--text); border: 1px solid var(--accent2); border-radius: 8px; padding: 6px; font: inherit; }
+
+/* 결합: 방금 낸 합 표시 */
+.gh-tile.flash-ok { border-color: #2ee66b !important; box-shadow: 0 0 0 3px #2ee66b, 0 0 16px #2ee66b; }
+.gh-tile.flash-bad { border-color: #ff4d4d !important; box-shadow: 0 0 0 3px #ff4d4d; }
+.gh-tile .who-tag { position: absolute; bottom: 3px; right: 5px; font-size: 11px; font-weight: 800; background: rgba(0,0,0,.65); color: #fff; padding: 1px 6px; border-radius: 6px; }
+.gh-board.wide { max-width: 440px; }
+.flash-msg { text-align: center; font-weight: 800; padding: 8px; border-radius: 10px; margin-bottom: 8px; }
+.flash-msg.ok { background: rgba(46,230,107,.15); color: #2ee66b; border: 1px solid #2ee66b; }
+.flash-msg.bad { background: rgba(255,77,77,.12); color: #ff6b6b; border: 1px solid #ff6b6b; }
+
+/* 인디언 포커 심화 */
+.pcard.joker { background: linear-gradient(135deg, #ffe08a, #f5b942); }
+
+/* 미스터리 사인 심화 */
+.ms-choices { display: grid; gap: 8px; }
+.ms-choices button { text-align: left; background: var(--panel2); border: 1px solid var(--accent2); }
+
+/* 미스터리 넘버 심화 */
+.numpad.p11 { grid-template-columns: repeat(6, 52px); }
+
+/* 시크릿 다이스 심화 */
+.sd-die.sealed { box-shadow: 0 0 0 3px #b06bff inset; }
+
+/* 기억 포커 */
+.pk { width: 58px; height: 80px; border-radius: 8px; background: #fff; color: #111; display: flex; flex-direction: column; align-items: center; justify-content: center; font-weight: 900; box-shadow: 0 2px 6px rgba(0,0,0,.4); }
+.pk b { font-size: 22px; line-height: 1; } .pk span { font-size: 20px; line-height: 1.1; }
+.pk.red { color: #d22; }
+.pk.back { background: repeating-linear-gradient(45deg, #2a3b7a, #2a3b7a 6px, #34478f 6px, #34478f 12px); }
+.pk.sm { width: 46px; height: 64px; } .pk.sm b { font-size: 18px; } .pk.sm span { font-size: 16px; }
+.pk-grid { display: grid; grid-template-columns: repeat(4, 66px); gap: 8px; justify-content: center; }
+.pk-cell { position: relative; padding: 4px; border-radius: 10px; border: 3px solid transparent; display: flex; justify-content: center; }
+.pk-cell.click { cursor: pointer; }
+.pk-cell.mark-me { border-color: #4c8dff; }
+.pk-cell.mark-opp { border-color: #ff6b6b; }
+.pk-cell.mark-me.mark-opp { border-color: #b06bff; }
+.pk-lbl { position: absolute; top: -2px; left: 2px; font-size: 10px; color: var(--muted); font-weight: 800; z-index: 1; }
+.pk-tags { position: absolute; bottom: -4px; left: 50%; transform: translateX(-50%); display: flex; gap: 2px; }
+.pk-tags i { font-style: normal; font-size: 10px; font-weight: 800; padding: 0 4px; border-radius: 4px; color: #fff; }
+.t-me { background: #4c8dff; } .t-opp { background: #e5484d; }
+.pk-shared { display: flex; gap: 8px; align-items: center; justify-content: center; margin-bottom: 8px; }
+.pk-in { display: inline-block; background: #fff; color: #111; border-radius: 4px; padding: 0 4px; font-weight: 800; font-size: 13px; }
+.pk-in.red { color: #d22; }
+.pk-result { text-align: center; line-height: 1.8; }
+.pk-result .r { font-weight: 900; font-size: 18px; }
+.pk-result.win { border-color: var(--win); } .pk-result.lose { border-color: var(--lose); }
+
+@media (max-width: 760px) {
+  /* 맨 아래 고정 로그 줄 (최근 3줄) — 누르면 전체 기록 */
+  main.stage { padding-bottom: 76px; }
+  .logbar { display: block; position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; background: rgba(24,27,36,.97); border-top: 1px solid var(--line); padding: 5px 54px 6px 10px; font-size: 12px; line-height: 1.45; cursor: pointer; box-shadow: 0 -4px 16px rgba(0,0,0,.4); min-height: 30px; }
+  .logbar .ll { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .logbar .ll:first-child { font-weight: 600; }
+  .logbar .ll:not(:first-child) { opacity: .7; }
+  .ll-more { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); font-size: 11px; color: var(--accent2); }
+  .extra-btn { display: none !important; }
+  .extra.show .feed { max-height: none; }
+  .ms-choices button { font-size: 13px; padding: 8px 10px; }
+  .numpad.p11 { grid-template-columns: repeat(6, 44px); }
+  .gh-board.wide { max-width: min(340px, 92vw); }
+  .pk { width: 50px; height: 66px; } .pk b { font-size: 18px; } .pk span { font-size: 16px; }
+  .pk.sm { width: 38px; height: 52px; } .pk.sm b { font-size: 15px; } .pk.sm span { font-size: 13px; }
+  .pk-grid { grid-template-columns: repeat(4, 58px); gap: 4px; }
+  .pk-cell { padding: 2px; }
+  .pk-shared { margin-bottom: 4px; gap: 5px; }
+  .pk-result { line-height: 1.5; font-size: 12px; padding: 6px; }
+  .pk-result .r { font-size: 14px; }
+  .bw-disguise select { padding: 4px; }
+}
+@media (max-width: 760px) and (max-height: 700px) {
+  .sd-gap { height: 15px; }
+  .sd-die { width: 44px; height: 44px; font-size: 24px; }
+  table.sheet td, table.sheet th { padding: 2px 4px; }
+  .sd-info { margin-bottom: 3px; }
+  .pk-grid { grid-template-columns: repeat(4, 54px); }
+  .pk { width: 46px; height: 60px; }
+}
+
+.mob-only-block { display: none; }
+@media (max-width: 760px) {
+  .pk-shared.in-result { display: none; }
+  .mob-only-block { display: block; }
+}
+
+@media (max-width: 760px) and (max-height: 700px) { .pk-result { margin-bottom: 4px; padding: 4px 6px; } }

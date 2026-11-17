@@ -90,7 +90,8 @@
     const g = GAME_BY_ID[state.room.gameId];
     const bg = document.createElement('div');
     bg.className = 'modal-bg';
-    bg.innerHTML = `<div class="modal"><h2>${g.icon} ${g.name} 플레이 방법</h2><div class="help">${g.help}</div>
+    const extraHelp = g.isPlus && GAME_BY_ID[g.base] ? `<details class="base-help"><summary>기본 규칙 (${GAME_BY_ID[g.base].name}) 보기</summary><div class="help">${GAME_BY_ID[g.base].help}</div></details>` : '';
+    bg.innerHTML = `<div class="modal"><h2>${g.icon} ${g.isPlus ? g.title : g.name} 플레이 방법</h2><div class="help">${g.help}</div>${extraHelp}
       <p style="text-align:right"><button class="primary" id="hc">닫기</button></p></div>`;
     bg.onclick = e => { if (e.target === bg || e.target.id === 'hc') bg.remove(); };
     document.body.appendChild(bg);
@@ -113,10 +114,12 @@
     toast,
   };
 
+  window.rerender = () => state && render();
   function render() {
     const { room, view } = state;
     const g = GAME_BY_ID[room.gameId];
-    document.title = `${g.name} - 두리게임`;
+    const gName = g.isPlus ? `${g.name} <span class="plus-tag">+심화</span>` : g.name;
+    document.title = `${g.isPlus ? g.title : g.name} - 두리게임`;
     const me = room.players[room.you], opp = room.players[1 - room.you];
     const chip = (p, isMe) => p
       ? `<div class="pchip ${isMe ? 'me' : ''}"><span class="dot ${p.online ? 'on' : ''}"></span>${esc(p.name)}<span class="desk-only">${isMe ? ' (나)' : ''}</span></div>`
@@ -127,7 +130,7 @@
       app.innerHTML = `
         <div class="roombar" id="roombar">
           <a href="/" class="mob-only home-btn" title="홈">🏠</a>
-          <span class="gname">${g.icon} ${g.name}</span>
+          <span class="gname">${g.icon} ${gName}</span>
           <input class="link" id="link" readonly value="${esc(location.origin + '/r/' + roomId)}">
           <button class="primary" id="copy"><span class="desk-only">링크 </span>복사</button>
           <button class="ghost" id="helpBtn">📖<span class="desk-only"> 플레이 방법</span></button>

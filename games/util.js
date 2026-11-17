@@ -7,4 +7,6 @@ function shuffle(arr) {
 }
 const coin = () => (Math.random() < 0.5 ? 0 : 1);
 const isInt = n => Number.isInteger(n);
-module.exports = { shuffle, coin, isInt };
+const rint = (min, max) => min + Math.floor(Math.random() * (max - min + 1));
+const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+module.exports = { shuffle, coin, isInt, rint, pick };

@@ -20,8 +20,11 @@
 <script>
 const list = document.getElementById('list');
 const detail = document.getElementById('detail');
-let current = (location.hash || '').slice(1) || GAMES[0].id;
-if (!GAME_BY_ID[current]) current = GAMES[0].id;
+// 주소 #흑과백 또는 #blackwhite_plus 로 바로 열기
+let hashId = (location.hash || '').slice(1);
+let entry = GAME_BY_ID[hashId] || GAMES[0];
+let current = entry.base || entry.id;      // 목록에서 고른 기본 게임 id
+let mode = entry.isPlus ? 'plus' : 'base';  // 기본 / 심화
 
 function renderList() {
   const shows = [...new Set(GAMES.map(g => g.show))];
@@ -30,30 +33,40 @@ function renderList() {
     ${GAMES.filter(g => g.show === show).map(g => `
       <div class="game-item ${g.id === current ? 'active' : ''}" data-id="${g.id}">
         <div class="ic">${g.icon}</div>
-        <div><div class="nm">${g.name}</div><div class="tg">${g.time} · 2인</div></div>
+        <div><div class="nm">${g.name}${g.plus ? ' <span class="plus-tag">+심화</span>' : ''}</div><div class="tg">${g.time} · 2인</div></div>
       </div>`).join('')}`).join('');
 }
 
 function renderDetail() {
   const g = GAME_BY_ID[current];
+  const sel = mode === 'plus' && g.plus ? g.plus : g;
   detail.innerHTML = `
     <div class="card">
       <span class="badge">${g.show}</span>
-      <h1>${g.icon} ${g.name}</h1>
-      <div class="sub">${g.tagline}</div>
+      <h1>${g.icon} ${g.name}${mode === 'plus' && g.plus ? ` <span class="plus-tag big">+심화</span>` : ''}</h1>
+      ${g.plus ? `<div class="mode-tabs">
+        <button class="${mode === 'base' ? 'on' : ''}" data-mode="base"><b>기본</b><span>${g.name}</span></button>
+        <button class="${mode === 'plus' ? 'on' : ''}" data-mode="plus"><b>+심화</b><span>${g.plus.name}</span></button>
+      </div>` : ''}
+      <div class="sub">${sel.tagline}</div>
       <div class="create-box">
-        <button class="primary" id="create">방 만들기</button>
+        <button class="primary" id="create">${mode === 'plus' && g.plus ? `+심화 (${g.plus.name}) 방 만들기` : '방 만들기'}</button>
         <div class="hint">방을 만들면 링크가 생겨요. 링크를 친구에게 보내면 바로 1:1 대결이 시작됩니다.</div>
       </div>
-      <div class="help"><h4 style="color:var(--text);font-size:18px">📖 플레이 방법</h4>${g.help}</div>
+      <div class="help"><h4 style="color:var(--text);font-size:18px">📖 플레이 방법${mode === 'plus' && g.plus ? ` · ${g.plus.name}` : ''}</h4>${sel.help}</div>
     </div>`;
-  document.getElementById('create').onclick = createRoom;
+  document.getElementById('create').onclick = e => createRoom(e, sel.id);
+  detail.querySelectorAll('[data-mode]').forEach(b => (b.onclick = () => {
+    mode = b.dataset.mode;
+    history.replaceState(null, '', '#' + (mode === 'plus' ? g.plus.id : g.id));
+    renderDetail();
+  }));
 }
 
-async function createRoom(e) {
+async function createRoom(e, gameId) {
   e.target.disabled = true;
   try {
-    const res = await fetch('/api/rooms', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ gameId: current }) });
+    const res = await fetch('/api/rooms', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ gameId }) });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error);
     location.href = '/r/' + data.roomId;
@@ -73,6 +86,7 @@ list.addEventListener('click', e => {
   const item = e.target.closest('.game-item');
   if (!item) return;
   current = item.dataset.id;
+  mode = 'base';
   history.replaceState(null, '', '#' + current);
   renderList(); renderDetail();
   if (window.innerWidth < 760) detail.scrollIntoView({ behavior: 'smooth' });
