@@ -126,6 +126,13 @@
       : `<div class="pchip"><span class="dot"></span>대기 중...</div>`;
 
     const vsBot = room.players.some(p => p.bot);
+    // 방문자 분석(GA4가 설정된 경우에만): 어떤 게임이 시작됐는지 기록
+    if (room.status === 'playing' && window.gtag && !window._gaStarted) {
+      window._gaStarted = true;
+      const lv = (room.players.find(p => p.bot) || {}).name || '';
+      window.gtag('event', 'game_start', { game_id: room.gameId, mode: vsBot ? 'computer' : 'friend', level: lv.replace('🤖 ', '') });
+    }
+    if (room.status !== 'playing') window._gaStarted = false;
     // 상단 바는 한 번만 만들고 갱신
     if (!document.getElementById('roombar')) {
       app.innerHTML = `
