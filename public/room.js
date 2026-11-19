@@ -125,6 +125,7 @@
       ? `<div class="pchip ${isMe ? 'me' : ''}"><span class="dot ${p.online ? 'on' : ''}"></span>${esc(p.name)}<span class="desk-only">${isMe ? ' (나)' : ''}</span></div>`
       : `<div class="pchip"><span class="dot"></span>대기 중...</div>`;
 
+    const vsBot = room.players.some(p => p.bot);
     // 상단 바는 한 번만 만들고 갱신
     if (!document.getElementById('roombar')) {
       app.innerHTML = `
@@ -138,6 +139,7 @@
         </div>
         <main class="stage"><div id="banner"></div><div id="game"></div></main>`;
       document.getElementById('copy').onclick = copyLink;
+      if (vsBot) { document.getElementById('copy').style.display = 'none'; document.getElementById('link').style.display = 'none'; }
       document.getElementById('helpBtn').onclick = showHelp;
       document.getElementById('link').onclick = e => e.target.select();
     }

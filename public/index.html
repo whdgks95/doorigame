@@ -50,12 +50,17 @@ function renderDetail() {
       </div>` : ''}
       <div class="sub">${sel.tagline}</div>
       <div class="create-box">
-        <button class="primary" id="create">${mode === 'plus' && g.plus ? `+심화 (${g.plus.name}) 방 만들기` : '방 만들기'}</button>
+        <button class="primary" id="create">${mode === 'plus' && g.plus ? `+심화 (${g.plus.name}) 친구와 대결` : '친구와 대결 (방 만들기)'}</button>
         <div class="hint">방을 만들면 링크가 생겨요. 링크를 친구에게 보내면 바로 1:1 대결이 시작됩니다.</div>
+      </div>
+      <div class="create-box bot-box">
+        <div class="bot-title">🤖 컴퓨터와 대결 <span class="hint">난이도를 고르면 바로 시작해요</span></div>
+        <div class="bot-levels">${BOT_LEVELS.map(([id, nm, desc]) => `<button data-bot="${id}" class="lv-${id}"><b>${nm}</b><span>${desc}</span></button>`).join('')}</div>
       </div>
       <div class="help"><h4 style="color:var(--text);font-size:18px">📖 플레이 방법${mode === 'plus' && g.plus ? ` · ${g.plus.name}` : ''}</h4>${sel.help}</div>
     </div>`;
   document.getElementById('create').onclick = e => createRoom(e, sel.id);
+  detail.querySelectorAll('[data-bot]').forEach(btn => (btn.onclick = e => createRoom(e, sel.id, btn.dataset.bot)));
   detail.querySelectorAll('[data-mode]').forEach(b => (b.onclick = () => {
     mode = b.dataset.mode;
     history.replaceState(null, '', '#' + (mode === 'plus' ? g.plus.id : g.id));
@@ -63,16 +68,24 @@ function renderDetail() {
   }));
 }
 
-async function createRoom(e, gameId) {
-  e.target.disabled = true;
+const BOT_LEVELS = [
+  ['easy', '이지', '처음 해보는 분'],
+  ['medium', '미디움', '규칙을 아는 수준'],
+  ['hard', '하드', '꽤 잘하는 상대'],
+  ['insane', '인세인', '고수'],
+  ['ai', 'AI', '최강 · 수읽기/확률 계산'],
+];
+async function createRoom(e, gameId, bot) {
+  const btn = e.currentTarget || e.target;
+  btn.disabled = true;
   try {
-    const res = await fetch('/api/rooms', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ gameId }) });
+    const res = await fetch('/api/rooms', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ gameId, bot }) });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error);
     location.href = '/r/' + data.roomId;
   } catch (err) {
     toast('방을 만들지 못했어요. 잠시 후 다시 시도해 주세요.');
-    e.target.disabled = false;
+    btn.disabled = false;
   }
 }
 

@@ -5,6 +5,7 @@ const path = require('path');
 const crypto = require('crypto');
 const { Server } = require('socket.io');
 const games = require('./games');
+const bots = require('./games/bots');
 
 const PORT = process.env.PORT || 3000;
 const ROOM_TTL_MS = 6 * 60 * 60 * 1000; // 아무도 없는 방은 6시간 뒤 정리
@@ -28,10 +29,14 @@ function newRoomId() {
 app.post('/api/rooms', (req, res) => {
   const game = games[req.body && req.body.gameId];
   if (!game) return res.status(400).json({ error: 'unknown_game' });
+  const level = req.body && req.body.bot;
+  if (level && !bots.LEVELS.includes(level)) return res.status(400).json({ error: 'unknown_level' });
   const id = newRoomId();
   rooms.set(id, {
     id, gameId: game.id, players: [], state: null,
     status: 'waiting', rematch: [false, false], lastActive: Date.now(),
+    // 컴퓨터 대전: 사람이 0번, 컴퓨터가 1번 자리
+    bot: level ? { level, index: 1, mem: {}, errors: 0, name: `🤖 ${bots.LEVEL_NAMES[level]}` } : null,
   });
   res.json({ roomId: id });
 });
@@ -45,6 +50,7 @@ app.get('/api/rooms/:id', (req, res) => {
 app.get('/r/:id', (req, res) => res.sendFile(path.join(__dirname, 'public', 'room.html')));
 
 function startGame(room) {
+  if (room.bot) { clearTimeout(room.botTimer); room.botTimer = null; room.bot.mem = {}; room.bot.errors = 0; }
   room.state = games[room.gameId].init();
   room.status = 'playing';
   room.rematch = [false, false];
@@ -66,7 +72,38 @@ function schedule(room) {
   }, Math.max(0, deadline - Date.now()) + 300);
 }
 
+// 컴퓨터 플레이어: 할 일이 있으면 '생각하는 시간' 뒤에 최신 상태로 다시 판단해서 행동
+function botTick(room) {
+  if (!room.bot || room.status !== 'playing' || room.botTimer) return;
+  const game = games[room.gameId], B = room.bot.index;
+  let p;
+  try { p = bots.plan(room.gameId, game.view(room.state, B), room.bot.level, room.bot.mem, game); }
+  catch (e) { console.error('bot plan error', e); return; }
+  if (!p) return;
+  room.botTimer = setTimeout(() => {
+    room.botTimer = null;
+    if (!rooms.has(room.id) || room.status !== 'playing') return;
+    let p2;
+    try { p2 = bots.plan(room.gameId, game.view(room.state, B), room.bot.level, room.bot.mem, game); }
+    catch (e) { console.error('bot plan error', e); return; }
+    if (p2) {
+      let err;
+      try { err = game.action(room.state, B, p2.action); } catch (e) { console.error(e); err = 'error'; }
+      if (err) { if (++room.bot.errors > 20) return; }
+      else room.bot.errors = 0;
+      if (room.state.over) room.status = 'over';
+      room.lastActive = Date.now();
+      broadcast(room);
+      schedule(room);
+      if (!err) return;
+    }
+    botTick(room);
+  }, Math.max(200, p.delay));
+}
+
 function broadcast(room) {
+  if (room.bot && room.status === 'over') room.rematch[room.bot.index] = true; // 컴퓨터는 항상 다시 하기 OK
+  setImmediate(() => botTick(room));
   const game = games[room.gameId];
   room.players.forEach((p, i) => {
     if (!p.socketId) return;
@@ -78,7 +115,7 @@ function broadcast(room) {
         gameId: room.gameId,
         status: room.status,
         you: i,
-        players: room.players.map(q => ({ name: q.name, online: !!q.socketId })),
+        players: room.players.map(q => ({ name: q.name, online: !!q.socketId, bot: !!q.bot })),
         rematch: room.rematch,
         serverNow: Date.now(),
       },
@@ -98,9 +135,11 @@ io.on('connection', socket => {
 
     let idx = room.players.findIndex(p => p.token === token);
     if (idx === -1) {
-      if (room.players.length >= 2) return ack({ error: 'full' });
+      const humanSeats = room.bot ? 1 : 2;
+      if (room.players.filter(p => !p.bot).length >= humanSeats) return ack({ error: 'full' });
       room.players.push({ token, name, socketId: null });
       idx = room.players.length - 1;
+      if (room.bot && !room.players.some(p => p.bot)) room.players.push({ token: 'BOT', name: room.bot.name, socketId: 'BOT', bot: true });
     }
     const player = room.players[idx];
     // 같은 사람이 다른 탭에서 다시 들어오면 이전 탭은 내보냄
@@ -161,8 +200,8 @@ io.on('connection', socket => {
 setInterval(() => {
   const now = Date.now();
   for (const [id, room] of rooms) {
-    const anyoneOnline = room.players.some(p => p.socketId);
-    if (!anyoneOnline && now - room.lastActive > ROOM_TTL_MS) { clearTimeout(room.timer); rooms.delete(id); }
+    const anyoneOnline = room.players.some(p => p.socketId && !p.bot);
+    if (!anyoneOnline && now - room.lastActive > ROOM_TTL_MS) { clearTimeout(room.timer); clearTimeout(room.botTimer); rooms.delete(id); }
   }
 }, 10 * 60 * 1000).unref();
 

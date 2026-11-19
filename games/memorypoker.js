@@ -2,7 +2,8 @@
 // 1) 52장 덱에서 16장을 4×4로 펼쳐 일정 시간 공개 → 외우기 (둘 다 '다 외웠어요'를 누르면 바로 넘어감)
 // 2) 카드가 모두 뒤집히고 공유 카드 3장 공개
 // 3) 각자 16칸 중 2칸을 비공개로 고름 (같은 카드를 골라도 됨)
-// 4) 고른 2장 + 공유 3장 = 5장으로 족보 비교. 높은 쪽이 라운드 승리. 완전히 같으면 새 카드로 재대결.
+// 4) 고른 2장 + 공유 3장 = 5장으로 족보 비교. 높은 쪽이 라운드 승리.
+//    족보까지 완전히 같으면 '먼저 고른 사람'이 승리 (둘 다 시간 초과면 새 카드로 재대결).
 // 3라운드를 먼저 이기면 승리.
 const { shuffle, rint } = require('./util');
 
@@ -47,6 +48,7 @@ function deal(s) {
   s.board = d.slice(0, 16);
   s.shared = d.slice(16, 19);
   s.picks = [null, null];
+  s.pickAt = [null, null];
   s.ready = [false, false];
   s.phase = 'memorize';
   s.deadline = Date.now() + MEMO_MS;
@@ -56,9 +58,11 @@ function resolve(s) {
   const hands = s.picks.map(p => [...p.map(k => s.board[k]), ...s.shared]);
   const ev = hands.map(eval5);
   const c = cmpEval(ev[0], ev[1]);
-  const winner = c > 0 ? 0 : c < 0 ? 1 : -1;
+  let winner = c > 0 ? 0 : c < 0 ? 1 : -1;
+  let byTime = false;
+  if (winner === -1 && s.pickAt[0] && s.pickAt[1] && s.pickAt[0] !== s.pickAt[1]) { winner = s.pickAt[0] < s.pickAt[1] ? 0 : 1; byTime = true; }
   if (winner >= 0) s.wins[winner]++;
-  s.result = { round: s.round, picks: s.picks.map(p => p.slice()), cards: s.picks.map(p => p.map(k => s.board[k])), shared: s.shared, hands: ev.map(e => HANDS[e[0]]), winner };
+  s.result = { round: s.round, picks: s.picks.map(p => p.slice()), cards: s.picks.map(p => p.map(k => s.board[k])), shared: s.shared, hands: ev.map(e => HANDS[e[0]]), winner, byTime };
   s.history.push(s.result);
   s.phase = 'result';
   if (s.wins[0] >= TARGET || s.wins[1] >= TARGET) { s.over = { winner: s.wins[0] >= TARGET ? 0 : 1 }; s.deadline = null; }
@@ -88,6 +92,7 @@ const api = {
       const idx = Array.isArray(a.idx) ? a.idx.map(Number) : [];
       if (idx.length !== 2 || idx[0] === idx[1] || idx.some(k => !Number.isInteger(k) || k < 0 || k > 15)) return '서로 다른 칸 2개를 골라야 해요.';
       s.picks[i] = idx;
+      s.pickAt[i] = Date.now() + (s.pickSeq = (s.pickSeq || 0) + 1) * 1e-3; // 같은 ms라도 순서 보장
       if (s.picks[0] && s.picks[1]) resolve(s);
       return null;
     }
@@ -106,7 +111,7 @@ const api = {
   view(s, i) {
     const o = 1 - i;
     const showBoard = s.phase === 'memorize' || s.phase === 'result' || !!s.over;
-    const mapRes = r => r && ({ round: r.round, myPick: r.picks[i], oppPick: r.picks[o], myCards: r.cards[i], oppCards: r.cards[o], shared: r.shared, myHand: r.hands[i], oppHand: r.hands[o], result: r.winner === -1 ? 'draw' : r.winner === i ? 'win' : 'lose' });
+    const mapRes = r => r && ({ round: r.round, myPick: r.picks[i], oppPick: r.picks[o], myCards: r.cards[i], oppCards: r.cards[o], shared: r.shared, myHand: r.hands[i], oppHand: r.hands[o], byTime: !!r.byTime, result: r.winner === -1 ? 'draw' : r.winner === i ? 'win' : 'lose' });
     return {
       round: s.round, wins: [s.wins[i], s.wins[o]], target: TARGET,
       phase: s.phase,

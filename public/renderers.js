@@ -639,7 +639,7 @@ R.memorypoker = (el, v, ctx) => {
     else if (v.phase === 'choose') { st = v.myPick ? (v.oppPicked ? '공개 중...' : '상대가 고르는 중...') : '공유 카드와 최고의 족보가 될 2칸을 고르세요'; mine = !v.myPick; total = v.chooseMs; label = '고르기'; }
     else if (v.phase === 'result') { st = '라운드 결과'; total = v.resultMs; label = '다음 라운드까지'; }
   }
-  const lines = v.history.slice().reverse().map(h => `R${h.round}: 나 ${cardsInline(h.myCards)} <b>${h.myHand}</b> vs 상대 ${cardsInline(h.oppCards)} <b>${h.oppHand}</b> → ${h.result === 'draw' ? '무승부(재대결)' : resultWord(h.result)}`);
+  const lines = v.history.slice().reverse().map(h => `R${h.round}: 나 ${cardsInline(h.myCards)} <b>${h.myHand}</b> vs 상대 ${cardsInline(h.oppCards)} <b>${h.oppHand}</b> → ${h.result === 'draw' ? '무승부(재대결)' : resultWord(h.result)}${h.byTime ? ' (먼저 고름)' : ''}`);
   const draw = () => {
     const res = v.result;
     const grid = Array.from({ length: 16 }, (_, k) => {
@@ -659,7 +659,7 @@ R.memorypoker = (el, v, ctx) => {
         <div class="mob-only-block">공유: ${cardsInline(res.shared)}</div>
         <div>나: ${cardsInline(res.myCards)} + 공유 → <b>${res.myHand}</b></div>
         <div>상대: ${cardsInline(res.oppCards)} + 공유 → <b>${res.oppHand}</b></div>
-        <div class="r">${res.result === 'win' ? '🏆 이번 라운드 승리!' : res.result === 'lose' ? '😵 이번 라운드 패배' : '🤝 같은 족보 — 새 카드로 다시!'}</div></div>` : ''}
+        <div class="r">${res.result === 'win' ? '🏆 이번 라운드 승리!' : res.result === 'lose' ? '😵 이번 라운드 패배' : '🤝 같은 족보 — 새 카드로 다시!'}${res.byTime ? ' <span class="small">(같은 족보 → 먼저 고른 사람 승)</span>' : ''}</div></div>` : ''}
       <div class="pk-grid">${grid}</div>
       <div class="row" style="margin-top:8px">
         ${v.phase === 'memorize' && !v.over ? `<button class="primary" id="ready" ${v.ready[0] ? 'disabled' : ''}>${v.ready[0] ? '상대를 기다리는 중...' : '다 외웠어요'}</button><span class="small muted">상대: ${v.ready[1] ? '다 외움 ✓' : '외우는 중'}</span>` : ''}
